@@ -71,7 +71,7 @@ A joining client names its party. The server fetches that party's roster and che
 
 ## Settings
 
-`DotPartyConfig` is layered like every Dot config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
+`DotPartyConfig` is layered like every Gamespice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
