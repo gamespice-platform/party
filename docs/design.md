@@ -12,7 +12,7 @@ website-city has a complete party system (`Party`, `PartyMember`, invites, a rea
 | The **game server** learning it is booked | `/api/integration/v1/party/reservation` | `DotPartyReservations` |
 | The **player** managing their party | `/api/app/v1/party/*` (before these, only tRPC behind the website's session cookie, which a game client does not hold) | `DotPartyBackendApp` |
 
-game-arena's `arena_party.gd` and its siblings are peer-to-peer sessions over dot-peer-to-peer: a different thing that shares the word.
+game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions over dot-peer-to-peer: a different thing that shares the word.
 
 ## The pieces
 

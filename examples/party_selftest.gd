@@ -213,7 +213,7 @@ func _test_ready_round() -> void:
 	_section("The ready round: everyone, or a share and a countdown")
 
 	var hub := _hub()
-	hub.add_server(7, "Arena EU", "dot://arena.example:27015")
+	hub.add_server(7, "FC EU", "dot://fc.example:27015")
 	var a := hub.as_user("a")
 	var b := hub.as_user("b")
 	var c := hub.as_user("c")
@@ -227,7 +227,7 @@ func _test_ready_round() -> void:
 	var opened := a.start(pid, 7)
 	_check(opened.ok, "the host opens it on a server")
 	var view: DotPartyReady = opened.value
-	_check(view.stage == DotParty.Stage.READY and str(view.connect_info["url"]) == "dot://arena.example:27015", "and everybody is told where to connect")
+	_check(view.stage == DotParty.Stage.READY and str(view.connect_info["url"]) == "dot://fc.example:27015", "and everybody is told where to connect")
 
 	a.set_ready(pid)
 	b.set_ready(pid)
