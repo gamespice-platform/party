@@ -1,4 +1,4 @@
-[![Party - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/260-dot-party)
+[![Party - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/69-gs-party)
 
 Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
