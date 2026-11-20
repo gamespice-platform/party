@@ -1,6 +1,6 @@
 [![dot-party - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/260-dot-party)
 
-Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source **Gamespice** collection (MIT licence).
+Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
 > Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
 
@@ -73,7 +73,7 @@ A joining client names its party. The server fetches that party's roster and che
 
 ## Settings
 
-`DotPartyConfig` is layered like every Gamespice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
+`DotPartyConfig` is layered like every GameSpice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
