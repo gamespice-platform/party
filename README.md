@@ -1,6 +1,6 @@
 [![Party - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/69-gs-party)
 
-Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [dot-core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
+Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [GameSpice Core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
 > Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
 
@@ -17,7 +17,7 @@ A game holds one backend and does not need to know which.
 | `DotPartyBackendApp` | The website, as the signed-in player. |
 | `DotPartyBackendLocal` | The website's rules run inside your process, for a LAN, an offline build and tests. |
 
-A refusal carries the website's own reason key (such as `party.join.deny.full` or `party.reserve.deny.window`) in `DotError.detail`, from either backend. The website translates those keys into nine languages, and [dot-locale](https://github.com/gamespice-platform/locale) can show them in the player's.
+A refusal carries the website's own reason key (such as `party.join.deny.full` or `party.reserve.deny.window`) in `DotError.detail`, from either backend. The website translates those keys into nine languages, and [GameSpice Locale](https://github.com/gamespice-platform/locale) can show them in the player's.
 
 ## Joining a server together
 
@@ -41,7 +41,7 @@ party.left_party.connect(func(_id, why): if why == "kicked": hud.toast("You were
 
 ## Booking a server
 
-A party can book a server for a while if the server's owner allows it. `DotPartyReservations` is the game server's half. It learns the booking (from the website, a local hub or the owner at the console) and answers the admission question dot-server already asks on every join.
+A party can book a server for a while if the server's owner allows it. `DotPartyReservations` is the game server's half. It learns the booking (from the website, a local hub or the owner at the console) and answers the admission question GameSpice Server already asks on every join.
 
 | Booking | What the server does |
 | --- | --- |

@@ -24,7 +24,7 @@ extends Node
 ## person is actually on it before tracking anything. A client that names a party it is
 ## not in has changed nothing.
 ##
-## [b]dot-auth is not named.[/b] [member client] is any object with
+## [b]GameSpice Auth is not named.[/b] [member client] is any object with
 ## [code]post_integration(path, body)[/code] and [code]get_integration(path, query)[/code];
 ## it stamps [code]ts[/code] and the nonce and holds the credential.
 
@@ -143,7 +143,7 @@ func same_party(uid_a: String, uid_b: String) -> bool:
 
 ## [param uids] grouped so that everybody in one party is in one group, and everybody in
 ## none is a group of one. What a team balancer is handed so it moves parties whole —
-## the same promise dot-matchmaking's balancer keeps.
+## the same promise GameSpice Matchmaking's balancer keeps.
 func groups(uids: PackedStringArray) -> Array:
 	var by_party := {}
 	var out := []

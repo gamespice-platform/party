@@ -7,10 +7,10 @@ extends Node
 ## evening, privately if the owner allows — and no integration route ever told the game
 ## server, so a "private" booking admitted anybody who found the address. This node is the
 ## server's half: it learns the booking (from the backbone, from a local hub, or from the
-## owner at the console), and it answers the admission question dot-server already asks.
+## owner at the console), and it answers the admission question GameSpice Server already asks.
 ##
-## [b]It admits through [code]dot_ban_source[/code], chained.[/b] That is the seam dot-server
-## consults on every join, and dot-moderation and dot-server-security's ban feeds already
+## [b]It admits through [code]dot_ban_source[/code], chained.[/b] That is the seam GameSpice Server
+## consults on every join, and GameSpice Moderation and GameSpice Server Security's ban feeds already
 ## share it by chaining. This does the same — whatever was registered before is kept and
 ## asked as well — so installing parties does not quietly switch off anybody's bans. The
 ## trap in that seam is ordering: the previous holder is captured BEFORE registering, or
@@ -23,19 +23,19 @@ extends Node
 ## thirty seconds it takes them all to load a map, which is the exact failure the site's
 ## own reservation rules say the feature exists to prevent.
 ##
-## [b]The address-only pass is not judged.[/b] dot-server asks twice: once with an address,
+## [b]The address-only pass is not judged.[/b] GameSpice Server asks twice: once with an address,
 ## before anybody has said who they are, and once with both. A booking is about people, so
 ## the first pass is always admitted here and the second is where the decision is.
 ##
 ## [b]A member is recognised by uid, never by name.[/b] A session's uid is
-## [code]backbone:<user id>[/code] after dot-auth, and the party's roster carries user ids.
+## [code]backbone:<user id>[/code] after GameSpice Auth, and the party's roster carries user ids.
 ## A display name can be chosen by anybody; matching on it would let a stranger in by
 ## calling themselves the host.
 
 const CHANNEL := "party.reserve"
 const SERVICE := &"dot_party_reservations"
 
-## The seam dot-server asks. dot-moderation and dot-server-security publish the same name.
+## The seam GameSpice Server asks. GameSpice Moderation and GameSpice Server Security publish the same name.
 const BAN_SOURCE := &"dot_ban_source"
 
 signal reservation_started(reservation: DotPartyReservation, party: DotParty)
@@ -126,7 +126,7 @@ func _process(delta: float) -> void:
 		sync()
 
 
-# --- The seam dot-server asks ------------------------------------------------
+# --- The seam GameSpice Server asks ------------------------------------------------
 
 func check_admission(uid: String, address: String) -> DotResult:
 	var mine := judge(uid)
@@ -277,7 +277,7 @@ func sync() -> DotResult:
 
 
 ## Fetches bookings from the backbone as this server, through any object with
-## [code]get_integration(path, query)[/code] — dot-auth's [code]DotBackboneClient[/code].
+## [code]get_integration(path, query)[/code] — GameSpice Auth's [code]DotBackboneClient[/code].
 ##
 ## The route, [code]GET party/reservation[/code], is served by website-city since its
 ## `feat/game-backbone` work was merged to `main` (by 2026-09-26; whether a given site is

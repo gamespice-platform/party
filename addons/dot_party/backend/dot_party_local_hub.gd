@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## For a LAN, an offline build, a game that ships its own party screen without TMC, and
 ## the suite. Several [DotPartyBackendLocal]s share one hub, each acting as one person —
-## the same shape as dot-peer-to-peer's loopback signaller, and for the same reason: the
+## the same shape as GameSpice Peer-to-Peer's loopback signaller, and for the same reason: the
 ## interesting bugs are between two people, so the test has to have two.
 ##
 ## [b]The rules are the site's, deliberately.[/b] A person is in at most one live party and

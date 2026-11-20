@@ -1,10 +1,10 @@
-# dot-party
+# GameSpice Party
 
 Parties that play together, from both ends of the TMC backbone's party system: the player's client (manage, ready up, follow the party to its server) and the game server (track, report, enforce a booking). A local hub runs the site's rules in-process for LAN, offline and the suite.
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../../docs/backbone.md) for anything that talks to website-city.
 
-**The distributable is `addons/dot_party/`.** It requires [dot-core](../dot-core) and nothing else (`ln -s ../../dot-core/addons/dot_core addons/dot_core`, gitignored). dot-auth's clients and dot-server's admission seam are reached by duck typing and never named.
+**The distributable is `addons/dot_party/`.** It requires [GameSpice Core](../dot-core) and nothing else (`ln -s ../../dot-core/addons/dot_core addons/dot_core`, gitignored). dot-auth's clients and dot-server's admission seam are reached by duck typing and never named.
 
 ## Read before
 
@@ -12,7 +12,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../..
 | --- | --- |
 | [docs/backbone-contract.md](docs/backbone-contract.md) | changing a request or response: every route, its scope, shape, rate limit and app scoping |
 | [docs/design.md](docs/design.md) | anything else: the two halves, the pieces, refusal keys, the hub's rule order, polling, following, kicks, bookings, the state report |
-| [docs/history.md](docs/history.md) | the parse failure, the invented keys, dot-auth's refusal shape, the ready round that never followed |
+| [docs/history.md](docs/history.md) | the parse failure, the invented keys, GameSpice Auth's refusal shape, the ready round that never followed |
 
 ## Layout
 
@@ -46,4 +46,4 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 - The state report is the whole list every time and never carries a uid. [design](docs/design.md#the-state-report-is-absolute-and-never-carries-a-uid)
 - Never name a method after an `Object` method (`is_connected`). [history](docs/history.md#is_connected-shadowed-objectis_connected)
 
-Deliberately not here: the site's routes, a party UI, party voice or chat (dot-chat's grouped channel), the server finder. [design](docs/design.md#deliberately-not-here)
+Deliberately not here: the site's routes, a party UI, party voice or chat (GameSpice Chat's grouped channel), the server finder. [design](docs/design.md#deliberately-not-here)

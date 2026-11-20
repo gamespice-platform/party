@@ -70,7 +70,7 @@ func can_manage() -> bool:
 	return role == Role.HOST or role == Role.CO_HOST
 
 
-## The uid a dot-server session carries for this person.
+## The uid a GameSpice Server session carries for this person.
 func server_uid() -> String:
 	return "backbone:%s" % user_id
 

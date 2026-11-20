@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-## Editor entry point for dot-party. Registers inspector types only.
+## Editor entry point for GameSpice Party. Registers inspector types only.
 ##
 ## No autoloads: a server and a client share one process, and the suite has four people in
 ## one, and a global would make each of those one.

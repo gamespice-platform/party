@@ -22,7 +22,7 @@ game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions ov
 | `DotPartyReady` | The site's `PartyReadyView`. |
 | `DotPartyReservation`, `DotPartyReservePolicy` | A booking, and an owner's terms: `ServerReservationOffer` ported line for line. |
 | `DotPartyBackend` | The interface. Every method may await; call them all with `await`. |
-| `DotPartyBackendApp` | The site as the player, through dot-auth's `post_app` / `get_app` (preferred) or a token and a `DotHttp`. |
+| `DotPartyBackendApp` | The site as the player, through GameSpice Auth's `post_app` / `get_app` (preferred) or a token and a `DotHttp`. |
 | `DotPartyLocalHub`, `DotPartyBackendLocal` | The site's rules in-process: LAN, offline, suites. One hub, one backend per person. |
 | `DotPartyClient` | The player's node: polls, heartbeats, diffs snapshots into signals, follows the party to its server. |
 | `DotPartyServer` | The server's node: claims, rosters, the absolute state report, sessions, rounds; `party_of(uid)`. |
@@ -30,13 +30,13 @@ game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions ov
 
 ## Refusals are the site's keys
 
-`DotError.detail` carries `party.join.deny.full`, `party.reserve.deny.window` and so on, from every backend. The site's locale files already translate them, which is why dot-locale reads that layout. **The keys were checked against the site's `locales/en/party.json` and source, not guessed** ([history](history.md#the-first-refusal-keys-were-invented)). The few management refusals the site throws as bare tRPC codes (kick, roles, the ready round) have hub-only keys under `party.manage.deny.*` and neighbours, and the hub's class note says so.
+`DotError.detail` carries `party.join.deny.full`, `party.reserve.deny.window` and so on, from every backend. The site's locale files already translate them, which is why GameSpice Locale reads that layout. **The keys were checked against the site's `locales/en/party.json` and source, not guessed** ([history](history.md#the-first-refusal-keys-were-invented)). The few management refusals the site throws as bare tRPC codes (kick, roles, the ready round) have hub-only keys under `party.manage.deny.*` and neighbours, and the hub's class note says so.
 
 ## The local hub is the site's rules in the site's order
 
 `DotPartyLocalHub` is `CanJoinParty` in order: ended, banned, alreadyIn, **the host always gets back in (even to a full party)**, full, type, then the after-start lock for walk-ins only. The order matters because the reason a person is given should be the most specific true one: telling a stranger that an invite-only party "has already started" discloses that it exists. The ready round is the site's too: all ready starts it; a threshold arms a countdown **once** and disarms below it, so re-arming restarts the count.
 
-`DotPartyReservePolicy` is `ServerReservationOffer`, `ReserveWindowOpen` and `ReserveWindowCloses`, including the wrapped window (22:00 → 02:00) and clamping rather than refusing a booking that would run past it. These are copies on purpose, for the reason dot-stats' merge rule is: a LAN server with no website still has to answer them, and two implementations that disagree about a window turn a party away from a server the site said was theirs. **A change to any of these rules on the site needs the same change here**, and the suite section that covers it.
+`DotPartyReservePolicy` is `ServerReservationOffer`, `ReserveWindowOpen` and `ReserveWindowCloses`, including the wrapped window (22:00 → 02:00) and clamping rather than refusing a booking that would run past it. These are copies on purpose, for the reason GameSpice Stats' merge rule is: a LAN server with no website still has to answer them, and two implementations that disagree about a window turn a party away from a server the site said was theirs. **A change to any of these rules on the site needs the same change here**, and the suite section that covers it.
 
 ## The client polls because the site pushes nothing
 
@@ -54,7 +54,7 @@ When the player is in no party, `mine()` answers null, which says nothing about 
 
 ## A booking admits through the ban seam, chained, and hands it back
 
-`DotPartyReservations` registers as `dot_ban_source` after capturing whatever was there (dot-moderation, dot-server-security's feeds), asks it too, and **re-registers it on exit** so removing parties at runtime does not remove the bans. The address-only admission pass is always admitted: a booking is about people. Members are recognised by `backbone:<userId>`, never by name; matching display names would let a stranger in by calling themselves the host.
+`DotPartyReservations` registers as `dot_ban_source` after capturing whatever was there (GameSpice Moderation, GameSpice Server Security's feeds), asks it too, and **re-registers it on exit** so removing parties at runtime does not remove the bans. The address-only admission pass is always admitted: a booking is about people. Members are recognised by `backbone:<userId>`, never by name; matching display names would let a stranger in by calling themselves the host.
 
 **An outage keeps the booking.** `sync()` failing leaves the booking in force; the alternative opens a private server whenever the website hiccups.
 
@@ -65,6 +65,6 @@ When the player is in no party, `mine()` answers null, which says nothing about 
 ## Deliberately not here
 
 - **The site's routes.** website-city is its own repository with its own migrations and tests.
-- **A party UI.** dot-ui draws; this emits.
-- **Party voice or party chat.** dot-voice and dot-chat own routing. dot-chat's grouped channel (`DotChatChannel.group(&"party", "Party")` with `DotChatRouter.group_fn` answering `DotPartyServer.party_of(uid)`) is party chat; dot-server-deploy's `host/tmc_party.gd` wires it into each game's router.
-- **The server finder.** The site's `PartySearch` loosens a party's criteria one step per pass against its `Server` table; dot-matchmaking is the player-queue half.
+- **A party UI.** GameSpice UI draws; this emits.
+- **Party voice or party chat.** GameSpice Voice and GameSpice Chat own routing. GameSpice Chat's grouped channel (`DotChatChannel.group(&"party", "Party")` with `DotChatRouter.group_fn` answering `DotPartyServer.party_of(uid)`) is party chat; GameSpice Server Deploy's `host/tmc_party.gd` wires it into each game's router.
+- **The server finder.** The site's `PartySearch` loosens a party's criteria one step per pass against its `Server` table; GameSpice Matchmaking is the player-queue half.

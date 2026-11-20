@@ -8,7 +8,7 @@ extends RefCounted
 ## as fresh as its last poll. So nothing in this class decides anything — it describes, and
 ## [DotPartyBackend] is where a change is asked for. A game that edited a snapshot and
 ## treated that as the party would be the second copy that goes stale, which is the bug
-## dot-player was written to remove.
+## GameSpice Player was written to remove.
 ##
 ## [b]The id is a decimal string.[/b] The site's id is a 64-bit integer and GDScript's
 ## [code]int[/code] is too, but JSON is not: a number past 2^53 arrives rounded, and the
@@ -119,7 +119,7 @@ func can_manage(user_id: String) -> bool:
 	return m != null and m.can_manage()
 
 
-## The uids a dot-server session will carry for everybody in the party.
+## The uids a GameSpice Server session will carry for everybody in the party.
 func server_uids() -> PackedStringArray:
 	var out := PackedStringArray()
 	for m in members():

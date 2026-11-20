@@ -1,6 +1,6 @@
 extends Node
 
-## The yml layout of dot-party's settings: new path, flat shim, operator layer.
+## The yml layout of GameSpice Party's settings: new path, flat shim, operator layer.
 ## Run: [code]timeout 120 godot --headless --path . res://examples/cfg_selftest.tscn[/code]
 
 const FOLDER := "dot_party"

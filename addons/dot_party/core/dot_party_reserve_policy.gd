@@ -9,7 +9,7 @@ extends Resource
 ## [method window_open] and [method window_closes] are [code]ServerReservationOffer[/code],
 ## [code]ReserveWindowOpen[/code] and [code]ReserveWindowCloses[/code] line for line — the
 ## wrapped 22:00→02:00 window included. It is duplicated rather than fetched for the
-## reason dot-stats duplicates its merge rule: a LAN server with no backbone still has to
+## reason GameSpice Stats duplicates its merge rule: a LAN server with no backbone still has to
 ## answer "can this party book me", and two implementations that disagree about a booking
 ## window is a party turned away at the door of a server the site said was theirs. The
 ## suite checks the same cases the site's own tests do.

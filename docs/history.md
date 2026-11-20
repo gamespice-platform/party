@@ -1,6 +1,6 @@
 # History
 
-What building dot-party found. The lessons that still apply are in [design.md](design.md) and [backbone-contract.md](backbone-contract.md).
+What building GameSpice Party found. The lessons that still apply are in [design.md](design.md) and [backbone-contract.md](backbone-contract.md).
 
 ## `is_connected()` shadowed `Object.is_connected`
 
@@ -10,9 +10,9 @@ A method of that name on `DotPartyMember` made every script in the addon fail to
 
 `party.join.deny.private`, `.password` and `.friends` do not exist; the site says `needInvite`, `wrongPassword` and `notFriend`. Reading `locales/en/party.json` and `src/lib/party/access.ts` also turned up two rules the first version lacked: the host always gets back into their own party, full or not, and joining a party you are already in is `alreadyIn`, not a quiet success. A game on the first version would have shown English-only fallback text for every refusal and locked a host out of their own full party offline.
 
-## dot-auth read a refusal shape the site never sends
+## GameSpice Auth read a refusal shape the site never sends
 
-dot-auth's `_app_refusal` looked for `{ok: false, error: {code, message}}`; the site's `ApiErrorSchema` sends `{ok: false, code, message, retryAfter?}` flat. Every refusal through `DotAuthClient.post_app` / `get_app` lost the site's code and message, including dot-stats' app-token submissions. Fixed in dot-auth (flat first, nested still accepted), with a suite section there.
+GameSpice Auth's `_app_refusal` looked for `{ok: false, error: {code, message}}`; the site's `ApiErrorSchema` sends `{ok: false, code, message, retryAfter?}` flat. Every refusal through `DotAuthClient.post_app` / `get_app` lost the site's code and message, including GameSpice Stats' app-token submissions. Fixed in GameSpice Auth (flat first, nested still accepted), with a suite section there.
 
 ## `mine()` returning null cost the kick reason
 

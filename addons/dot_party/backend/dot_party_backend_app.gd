@@ -6,7 +6,7 @@ extends DotPartyBackend
 ## [b]Speaks routes added to the site for this addon.[/b] The site's parties are complete —
 ## membership, invites, the ready round, reservations — but only through tRPC behind the
 ## website's session cookie, which a game client does not have. A game client holds an
-## app token from dot-auth's device grant, and [code]/api/app/v1[/code] has no party routes
+## app token from GameSpice Auth's device grant, and [code]/api/app/v1[/code] has no party routes
 ## until these. The routes this calls are listed in [code]docs/backbone-contract.md[/code]:
 ## each one is a thin wrapper over a function website-city already has
 ## ([code]JoinParty[/code], [code]LeaveParty[/code], [code]SetPartyReady[/code],
@@ -20,11 +20,11 @@ extends DotPartyBackend
 ## (a [code]party.join.deny.*[/code]) arrives as [code]code[/code] and lands in
 ## [member DotError.detail], where every other backend puts it.
 ##
-## [b]Neither dot-auth nor its client is named.[/b] Give it [member client] — any object
+## [b]Neither GameSpice Auth nor its client is named.[/b] Give it [member client] — any object
 ## with [code]post_app(path, body)[/code] and [code]get_app(path, query)[/code], which is
-## dot-auth's [code]DotAuthClient[/code] — and the token, its refresh and the envelope are
+## GameSpice Auth's [code]DotAuthClient[/code] — and the token, its refresh and the envelope are
 ## all handled there, once, for every addon that speaks the app API. [member token_fn]
-## with a [DotHttp] is the fallback for a game without dot-auth.
+## with a [DotHttp] is the fallback for a game without GameSpice Auth.
 
 const CHANNEL := "party.app"
 
@@ -258,7 +258,7 @@ func _call_inner(method: String, path: String, body: Dictionary = {}, query: Dic
 			return _refusal(env, 0)
 		return DotResult.success(env.get("data"))
 
-	# Through dot-auth: the envelope is already unwrapped, and a refusal's site code is
+	# Through GameSpice Auth: the envelope is already unwrapped, and a refusal's site code is
 	# already in the error's detail.
 	var res: DotResult = null
 	if method == "GET":
