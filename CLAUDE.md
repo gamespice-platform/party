@@ -18,14 +18,14 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../..
 
 | Path | What |
 | --- | --- |
-| `core/` | `DotParty`, `DotPartyMember`, `DotPartyReady`, `DotPartyReservation`, `DotPartyReservePolicy` |
-| `backend/` | `DotPartyBackend` (interface), `DotPartyBackendApp` (the site), `DotPartyLocalHub` + `DotPartyBackendLocal` (in-process) |
-| `runtime/dot_party_client.gd` | `DotPartyClient`: the player's node |
-| `server/dot_party_server.gd` | `DotPartyServer`: claims, rosters, state report, `party_of(uid)` |
-| `server/dot_party_reservations.gd` | `DotPartyReservations`: booking enforcement as `dot_ban_source` |
-| `dot_party_config.gd` | `DotPartyConfig`: poll, heartbeat, state-report and reservation-sync intervals |
+| `core/` | `GSParty`, `GSPartyMember`, `GSPartyReady`, `GSPartyReservation`, `GSPartyReservePolicy` |
+| `backend/` | `GSPartyBackend` (interface), `GSPartyBackendApp` (the site), `GSPartyLocalHub` + `GSPartyBackendLocal` (in-process) |
+| `runtime/dot_party_client.gd` | `GSPartyClient`: the player's node |
+| `server/dot_party_server.gd` | `GSPartyServer`: claims, rosters, state report, `party_of(uid)` |
+| `server/dot_party_reservations.gd` | `GSPartyReservations`: booking enforcement as `dot_ban_source` |
+| `dot_party_config.gd` | `GSPartyConfig`: poll, heartbeat, state-report and reservation-sync intervals |
 | `examples/party_selftest.tscn` | the suite, no network |
-| `examples/cfg_selftest.tscn` | `party.yml` through `DotPartyConfig.load_cfg`: `cfg/addons/dot_party/`, `cfg/server/addons/dot_party/` over it, the flat `cfg/party.yml` shim (WARN once, removed 2026-12-31) |
+| `examples/cfg_selftest.tscn` | `party.yml` through `GSPartyConfig.load_cfg`: `cfg/addons/dot_party/`, `cfg/server/addons/dot_party/` over it, the flat `cfg/party.yml` shim (WARN once, removed 2026-12-31) |
 
 Paths except `examples/` are in `addons/dot_party/`.
 

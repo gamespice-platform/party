@@ -1,4 +1,4 @@
-class_name DotPartyReservation
+class_name GSPartyReservation
 extends RefCounted
 
 ## A server booked for a party for a stretch of time.
@@ -6,7 +6,7 @@ extends RefCounted
 ## The backbone's [code]ServerPartyReservation[/code], field for field. [b]PRIVATE is the
 ## part that needs the game server.[/b] The site can promise a party that a server will be
 ## theirs; only the server can keep strangers out of it — and until this addon, nothing
-## told the server. See [DotPartyReservations].
+## told the server. See [GSPartyReservations].
 
 enum Status { PENDING, ACTIVE, ENDED, DENIED, CANCELLED, EXPIRED }
 
@@ -47,23 +47,23 @@ static func parse_status(s: String) -> Status:
 	return Status.PENDING if i < 0 else i as Status
 
 
-static func from_dict(d: Dictionary) -> DotResult:
-	var r := DotPartyReservation.new()
+static func from_dict(d: Dictionary) -> GSResult:
+	var r := GSPartyReservation.new()
 	r.id = str(d.get("id", ""))
 	r.party_id = str(d.get("partyId", ""))
-	if r.id == "" or not DotParty.is_id(r.party_id):
-		return DotResult.fail(DotError.CODE_PARSE, "a reservation needs an id and a party id", str(d))
+	if r.id == "" or not GSParty.is_id(r.party_id):
+		return GSResult.fail(GSError.CODE_PARSE, "a reservation needs an id and a party id", str(d))
 	r.server_id = int(d.get("serverId", 0)) if d.get("serverId") != null else 0
 	r.requested_by = str(d.get("requestedById", "")) if d.get("requestedById") != null else ""
 	r.status = parse_status(str(d.get("status", "PENDING")))
 	r.is_private = bool(d.get("private", false))
-	r.starts_at = DotPartyMember.parse_time(d.get("startsAt"))
-	r.ends_at = DotPartyMember.parse_time(d.get("endsAt"))
-	r.released_at = DotPartyMember.parse_time(d.get("releasedAt"))
+	r.starts_at = GSPartyMember.parse_time(d.get("startsAt"))
+	r.ends_at = GSPartyMember.parse_time(d.get("endsAt"))
+	r.released_at = GSPartyMember.parse_time(d.get("releasedAt"))
 	r.note = str(d.get("note", "")) if d.get("note") != null else ""
 	if r.ends_at <= r.starts_at:
-		return DotResult.fail(DotError.CODE_PARSE, "a reservation that ends before it starts", r.id)
-	return DotResult.success(r)
+		return GSResult.fail(GSError.CODE_PARSE, "a reservation that ends before it starts", r.id)
+	return GSResult.success(r)
 
 
 func to_dict() -> Dictionary:
@@ -74,9 +74,9 @@ func to_dict() -> Dictionary:
 		"requestedById": requested_by,
 		"status": STATUS_NAMES[status],
 		"private": is_private,
-		"startsAt": DotPartyMember.format_time(starts_at),
-		"endsAt": DotPartyMember.format_time(ends_at),
-		"releasedAt": DotPartyMember.format_time(released_at),
+		"startsAt": GSPartyMember.format_time(starts_at),
+		"endsAt": GSPartyMember.format_time(ends_at),
+		"releasedAt": GSPartyMember.format_time(released_at),
 		"note": note,
 	}
 

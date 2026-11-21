@@ -1,10 +1,10 @@
-class_name DotPartyLocalHub
+class_name GSPartyLocalHub
 extends RefCounted
 
 ## Parties with no website: the backbone's rules, run in-process.
 ##
 ## For a LAN, an offline build, a game that ships its own party screen without TMC, and
-## the suite. Several [DotPartyBackendLocal]s share one hub, each acting as one person —
+## the suite. Several [GSPartyBackendLocal]s share one hub, each acting as one person —
 ## the same shape as GameSpice Peer-to-Peer's loopback signaller, and for the same reason: the
 ## interesting bugs are between two people, so the test has to have two.
 ##
@@ -43,7 +43,7 @@ var friends_fn: Callable = Callable()
 ## user id -> display name, for rosters.
 var names: Dictionary = {}
 
-## party id -> DotParty (the authority; everything handed out is a copy)
+## party id -> GSParty (the authority; everything handed out is a copy)
 var _parties: Dictionary = {}
 ## party id -> {password_hash, auto_pct, auto_sec, join_after_start, ready_opened, deadline, bans: {}}
 var _extra: Dictionary = {}
@@ -53,16 +53,16 @@ var _seen: Dictionary = {}
 var _invites: Dictionary = {}
 ## server id -> {policy, humans, online, name, url}
 var _servers: Dictionary = {}
-var _reservations: Array[DotPartyReservation] = []
+var _reservations: Array[GSPartyReservation] = []
 var _next_id: int = 4470
 var _next_invite: int = 1
 var _next_reservation: int = 1
 
 
-func as_user(user_id: String, display_name: String = "") -> DotPartyBackendLocal:
+func as_user(user_id: String, display_name: String = "") -> GSPartyBackendLocal:
 	if display_name != "":
 		names[user_id] = display_name
-	return DotPartyBackendLocal.new(self, user_id)
+	return GSPartyBackendLocal.new(self, user_id)
 
 
 func now() -> int:
@@ -74,9 +74,9 @@ func now() -> int:
 ## Makes a server bookable in this hub. [param url] is what a ready round tells people
 ## to connect to.
 func add_server(server_id: int, server_name: String, url: String,
-		policy: DotPartyReservePolicy = null) -> void:
+		policy: GSPartyReservePolicy = null) -> void:
 	_servers[server_id] = {
-		"policy": policy if policy != null else DotPartyReservePolicy.new(),
+		"policy": policy if policy != null else GSPartyReservePolicy.new(),
 		"humans": 0,
 		"online": true,
 		"name": server_name,
@@ -91,27 +91,27 @@ func set_population(server_id: int, humans: int) -> void:
 
 # --- Membership --------------------------------------------------------------
 
-func create(user_id: String, options: Dictionary) -> DotResult:
+func create(user_id: String, options: Dictionary) -> GSResult:
 	var max_users := int(options.get("maxUsers", 8))
-	if max_users < DotParty.MIN_USERS or max_users > DotParty.MAX_USERS_CAP:
-		return _deny(DotError.CODE_INVALID, "A party holds between 2 and 256 people.", "party.create.deny.size")
+	if max_users < GSParty.MIN_USERS or max_users > GSParty.MAX_USERS_CAP:
+		return _deny(GSError.CODE_INVALID, "A party holds between 2 and 256 people.", "party.create.deny.size")
 	var party_name := str(options.get("name", ""))
-	if party_name.length() > DotParty.NAME_MAX:
-		return _deny(DotError.CODE_INVALID, "That party name is too long.", "party.create.deny.name")
-	var type := DotParty.parse_type(str(options.get("type", "PUBLIC")))
+	if party_name.length() > GSParty.NAME_MAX:
+		return _deny(GSError.CODE_INVALID, "That party name is too long.", "party.create.deny.name")
+	var type := GSParty.parse_type(str(options.get("type", "PUBLIC")))
 	var password := str(options.get("password", ""))
-	if type == DotParty.Type.PUBLIC_PASSWORD and (password.length() < PASSWORD_MIN or password.length() > PASSWORD_MAX):
-		return _deny(DotError.CODE_INVALID, "A password party needs a password of 4 to 128 characters.", "party.create.deny.password")
+	if type == GSParty.Type.PUBLIC_PASSWORD and (password.length() < PASSWORD_MIN or password.length() > PASSWORD_MAX):
+		return _deny(GSError.CODE_INVALID, "A password party needs a password of 4 to 128 characters.", "party.create.deny.password")
 
 	# One live hosted party per person.
 	for p in _parties.values():
-		var live: DotParty = p
+		var live: GSParty = p
 		if live.is_live() and live.host_id == user_id:
-			return _deny(DotError.CODE_CONFLICT, "You are already hosting a party.", "party.create.deny.hosting")
+			return _deny(GSError.CODE_CONFLICT, "You are already hosting a party.", "party.create.deny.hosting")
 
 	var left := _leave_every_party(user_id)
 
-	var party := DotParty.new()
+	var party := GSParty.new()
 	party.id = str(_next_id)
 	_next_id += 1
 	party.name = party_name
@@ -120,7 +120,7 @@ func create(user_id: String, options: Dictionary) -> DotResult:
 	party.host_id = user_id
 	party.start_time = now()
 	party.server_id = int(options.get("serverId", 0)) if options.get("serverId") != null else 0
-	var host := DotPartyMember.of(user_id, str(names.get(user_id, user_id)), DotPartyMember.Role.HOST)
+	var host := GSPartyMember.of(user_id, str(names.get(user_id, user_id)), GSPartyMember.Role.HOST)
 	host.joined_at = now()
 	party.roster.append(host)
 	_parties[party.id] = party
@@ -136,22 +136,22 @@ func create(user_id: String, options: Dictionary) -> DotResult:
 		"bans": {},
 	}
 	_seen["%s|%s" % [party.id, user_id]] = now()
-	DotLog.debug(CHANNEL, "party created", {"party": party.id, "host": user_id, "left": left})
-	return DotResult.success(party.copy())
+	GSLog.debug(CHANNEL, "party created", {"party": party.id, "host": user_id, "left": left})
+	return GSResult.success(party.copy())
 
 
-func join(user_id: String, party_id: String, password: String = "", token: String = "") -> DotResult:
+func join(user_id: String, party_id: String, password: String = "", token: String = "") -> GSResult:
 	# The order is the site's CanJoinParty, because the reason a person is given should
 	# be the most specific true one — and telling a stranger that an invite-only party
 	# "has already started" would disclose that it exists and is running.
 	var party := _live(party_id)
 	if party == null:
-		return _deny(DotError.CODE_STATE, "This party has ended.", "party.join.deny.ended")
+		return _deny(GSError.CODE_STATE, "This party has ended.", "party.join.deny.ended")
 	var extra: Dictionary = _extra[party_id]
 	if (extra["bans"] as Dictionary).has(user_id):
-		return _deny(DotError.CODE_FORBIDDEN, "You have been banned from this party.", "party.join.deny.banned")
+		return _deny(GSError.CODE_FORBIDDEN, "You have been banned from this party.", "party.join.deny.banned")
 	if party.member(user_id) != null:
-		return _deny(DotError.CODE_CONFLICT, "You are already in this party.", "party.join.deny.alreadyIn")
+		return _deny(GSError.CODE_CONFLICT, "You are already in this party.", "party.join.deny.alreadyIn")
 
 	# The host always gets back into their own party, full or not: a host who dropped out
 	# of a full party could otherwise never return to the party they are responsible for.
@@ -159,57 +159,57 @@ func join(user_id: String, party_id: String, password: String = "", token: Strin
 	var invited := false
 	if not is_host:
 		if party.is_full():
-			return _deny(DotError.CODE_CONFLICT, "This party is full.", "party.join.deny.full")
+			return _deny(GSError.CODE_CONFLICT, "This party is full.", "party.join.deny.full")
 		invited = _consume_invite(party_id, user_id, token)
 		var friend := _is_friend(user_id, party)
 		if not invited:
 			match party.type:
-				DotParty.Type.PRIVATE:
-					return _deny(DotError.CODE_FORBIDDEN, "This party is invite only.", "party.join.deny.needInvite")
-				DotParty.Type.PUBLIC_PASSWORD:
+				GSParty.Type.PRIVATE:
+					return _deny(GSError.CODE_FORBIDDEN, "This party is invite only.", "party.join.deny.needInvite")
+				GSParty.Type.PUBLIC_PASSWORD:
 					# An invitee skips the password: somebody who knew it let them in.
 					if password.sha256_text() != str(extra["password_hash"]):
-						return _deny(DotError.CODE_FORBIDDEN, "That password was not correct.", "party.join.deny.wrongPassword")
-				DotParty.Type.FRIENDS:
+						return _deny(GSError.CODE_FORBIDDEN, "That password was not correct.", "party.join.deny.wrongPassword")
+				GSParty.Type.FRIENDS:
 					if not friend:
-						return _deny(DotError.CODE_FORBIDDEN, "Only the host's friends can join this party.", "party.join.deny.notFriend")
+						return _deny(GSError.CODE_FORBIDDEN, "Only the host's friends can join this party.", "party.join.deny.notFriend")
 					if not bool(extra["friends_can_join"]):
-						return _deny(DotError.CODE_FORBIDDEN, "This party is invite only.", "party.join.deny.needInvite")
+						return _deny(GSError.CODE_FORBIDDEN, "This party is invite only.", "party.join.deny.needInvite")
 			# The after-start lock is for walk-ins only; an invite is the host deciding by hand.
-			if party.stage == DotParty.Stage.PLAYING:
+			if party.stage == GSParty.Stage.PLAYING:
 				var late := bool(extra["join_after_start_friends"]) if friend else bool(extra["join_after_start"])
 				if not late:
-					return _deny(DotError.CODE_STATE, "This party has already started and is not taking new players.", "party.join.deny.started")
+					return _deny(GSError.CODE_STATE, "This party has already started and is not taking new players.", "party.join.deny.started")
 
 	var left := _leave_every_party(user_id)
 
-	var row: DotPartyMember = null
+	var row: GSPartyMember = null
 	for m in party.roster:
 		if m.user_id == user_id:
 			row = m
 	if row == null:
-		row = DotPartyMember.of(user_id, str(names.get(user_id, user_id)))
+		row = GSPartyMember.of(user_id, str(names.get(user_id, user_id)))
 		party.roster.append(row)
-	row.state = DotPartyMember.State.JOINED
+	row.state = GSPartyMember.State.JOINED
 	# A host rejoining their own party is its host again.
-	row.role = DotPartyMember.Role.HOST if party.host_id == user_id else (
-		DotPartyMember.Role.CO_HOST if row.role == DotPartyMember.Role.CO_HOST else DotPartyMember.Role.MEMBER)
+	row.role = GSPartyMember.Role.HOST if party.host_id == user_id else (
+		GSPartyMember.Role.CO_HOST if row.role == GSPartyMember.Role.CO_HOST else GSPartyMember.Role.MEMBER)
 	row.joined_at = now()
 	row.ready_at = 0
 	row.connected_at = 0
 	_seen["%s|%s" % [party_id, user_id]] = now()
 	_evaluate_ready(party)
-	return DotResult.success({"partyId": party_id, "role": row.role_name(), "leftPartyId": left if left != "" else null})
+	return GSResult.success({"partyId": party_id, "role": row.role_name(), "leftPartyId": left if left != "" else null})
 
 
-func leave(user_id: String, party_id: String) -> DotResult:
+func leave(user_id: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null:
-		return DotResult.success({"left": false, "ended": false})
+		return GSResult.success({"left": false, "ended": false})
 	var m := party.member(user_id)
 	if m == null:
-		return DotResult.success({"left": false, "ended": false})
-	m.state = DotPartyMember.State.LEFT
+		return GSResult.success({"left": false, "ended": false})
+	m.state = GSPartyMember.State.LEFT
 	m.ready_at = 0
 	m.connected_at = 0
 	# The last one out ends it. The host leaving alone does not: hosts drop in and out, and
@@ -219,87 +219,87 @@ func leave(user_id: String, party_id: String) -> DotResult:
 		_end(party)
 	else:
 		_evaluate_ready(party)
-	return DotResult.success({"left": true, "ended": ended})
+	return GSResult.success({"left": true, "ended": ended})
 
 
-func heartbeat(user_id: String, party_id: String) -> DotResult:
+func heartbeat(user_id: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.member(user_id) == null:
-		return _deny(DotError.CODE_STATE, "You are not in that party.", "party.heartbeat.deny.member")
+		return _deny(GSError.CODE_STATE, "You are not in that party.", "party.heartbeat.deny.member")
 	_seen["%s|%s" % [party_id, user_id]] = now()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func kick(actor: String, party_id: String, target: String, ban: bool) -> DotResult:
+func kick(actor: String, party_id: String, target: String, ban: bool) -> GSResult:
 	var party := _live(party_id)
 	if party == null:
-		return _deny(DotError.CODE_STATE, "That party has ended.", "party.join.deny.ended")
+		return _deny(GSError.CODE_STATE, "That party has ended.", "party.join.deny.ended")
 	var who := party.member(actor)
 	var victim := party.member(target)
 	if who == null or not who.can_manage():
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can do that.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can do that.", "party.manage.deny.role")
 	if victim == null:
-		return _deny(DotError.CODE_STATE, "They are not in the party.", "party.kick.deny.member")
-	if victim.role == DotPartyMember.Role.HOST or target == actor:
-		return _deny(DotError.CODE_FORBIDDEN, "The host cannot be removed.", "party.kick.deny.host")
-	if victim.role == DotPartyMember.Role.CO_HOST and who.role != DotPartyMember.Role.HOST:
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host can remove a co-host.", "party.kick.deny.cohost")
-	victim.state = DotPartyMember.State.BANNED if ban else DotPartyMember.State.KICKED
+		return _deny(GSError.CODE_STATE, "They are not in the party.", "party.kick.deny.member")
+	if victim.role == GSPartyMember.Role.HOST or target == actor:
+		return _deny(GSError.CODE_FORBIDDEN, "The host cannot be removed.", "party.kick.deny.host")
+	if victim.role == GSPartyMember.Role.CO_HOST and who.role != GSPartyMember.Role.HOST:
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host can remove a co-host.", "party.kick.deny.cohost")
+	victim.state = GSPartyMember.State.BANNED if ban else GSPartyMember.State.KICKED
 	victim.ready_at = 0
 	if ban:
 		((_extra[party_id] as Dictionary)["bans"] as Dictionary)[target] = true
 	_evaluate_ready(party)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func set_role(actor: String, party_id: String, target: String, role: DotPartyMember.Role) -> DotResult:
+func set_role(actor: String, party_id: String, target: String, role: GSPartyMember.Role) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.host_id != actor:
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host can change roles.", "party.manage.deny.role")
-	if role == DotPartyMember.Role.HOST:
-		return _deny(DotError.CODE_INVALID, "Hand the party over instead.", "party.role.deny.host")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host can change roles.", "party.manage.deny.role")
+	if role == GSPartyMember.Role.HOST:
+		return _deny(GSError.CODE_INVALID, "Hand the party over instead.", "party.role.deny.host")
 	var m := party.member(target)
 	if m == null or target == actor:
-		return _deny(DotError.CODE_STATE, "They are not in the party.", "party.role.deny.member")
+		return _deny(GSError.CODE_STATE, "They are not in the party.", "party.role.deny.member")
 	m.role = role
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func transfer_host(actor: String, party_id: String, target: String) -> DotResult:
+func transfer_host(actor: String, party_id: String, target: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.host_id != actor:
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host can hand the party over.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host can hand the party over.", "party.manage.deny.role")
 	var next := party.member(target)
 	if next == null or target == actor:
-		return _deny(DotError.CODE_STATE, "They are not in the party.", "party.transfer.deny.member")
+		return _deny(GSError.CODE_STATE, "They are not in the party.", "party.transfer.deny.member")
 	for m in party.roster:
 		if m.user_id == actor:
-			m.role = DotPartyMember.Role.CO_HOST
-	next.role = DotPartyMember.Role.HOST
+			m.role = GSPartyMember.Role.CO_HOST
+	next.role = GSPartyMember.Role.HOST
 	party.host_id = target
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func end(actor: String, party_id: String) -> DotResult:
+func end(actor: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null:
-		return DotResult.success(null)
+		return GSResult.success(null)
 	if party.host_id != actor:
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host can end the party.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host can end the party.", "party.manage.deny.role")
 	_end(party)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 # --- Invites -----------------------------------------------------------------
 
-func invite(actor: String, party_id: String, user_ids: PackedStringArray, message: String) -> DotResult:
+func invite(actor: String, party_id: String, user_ids: PackedStringArray, message: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.member(actor) == null:
-		return _deny(DotError.CODE_FORBIDDEN, "You are not in that party.", "party.invite.deny.member")
-	if not party.can_manage(actor) and party.type != DotParty.Type.PUBLIC:
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can invite to this party.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "You are not in that party.", "party.invite.deny.member")
+	if not party.can_manage(actor) and party.type != GSParty.Type.PUBLIC:
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can invite to this party.", "party.manage.deny.role")
 	if user_ids.size() > INVITE_BATCH_MAX:
-		return _deny(DotError.CODE_INVALID, "At most 25 people at once.", "party.invite.deny.batch")
+		return _deny(GSError.CODE_INVALID, "At most 25 people at once.", "party.invite.deny.batch")
 	var made := PackedStringArray()
 	for uid in user_ids:
 		if party.member(uid) != null:
@@ -311,40 +311,40 @@ func invite(actor: String, party_id: String, user_ids: PackedStringArray, messag
 			"userId": uid, "status": "PENDING", "message": message,
 		}
 		made.append(inv_id)
-	return DotResult.success(made)
+	return GSResult.success(made)
 
 
-func invites_for(user_id: String) -> DotResult:
+func invites_for(user_id: String) -> GSResult:
 	var out := []
 	for inv in _invites.values():
 		var d: Dictionary = inv
 		if str(d["userId"]) == user_id and str(d["status"]) == "PENDING" and _live(str(d["partyId"])) != null:
 			out.append(d.duplicate())
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
-func respond_invite(user_id: String, invite_id: String, accept: bool) -> DotResult:
+func respond_invite(user_id: String, invite_id: String, accept: bool) -> GSResult:
 	var d: Dictionary = _invites.get(invite_id, {})
 	if d.is_empty() or str(d["userId"]) != user_id or str(d["status"]) != "PENDING":
-		return _deny(DotError.CODE_STATE, "That invite is no longer open.", "party.invite.deny.closed")
+		return _deny(GSError.CODE_STATE, "That invite is no longer open.", "party.invite.deny.closed")
 	if not accept:
 		d["status"] = "DECLINED"
-		return DotResult.success(null)
+		return GSResult.success(null)
 	return join(user_id, str(d["partyId"]))
 
 
 # --- The ready round ---------------------------------------------------------
 
-func start(actor: String, party_id: String, server_id: int) -> DotResult:
+func start(actor: String, party_id: String, server_id: int) -> GSResult:
 	var party := _live(party_id)
 	if party == null or not party.can_manage(actor):
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can start.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can start.", "party.manage.deny.role")
 	if server_id > 0:
 		party.server_id = server_id
 	if party.server_id <= 0 or not _servers.has(party.server_id):
-		return _deny(DotError.CODE_STATE, "Pick a server first.", "party.ready.deny.server")
+		return _deny(GSError.CODE_STATE, "Pick a server first.", "party.ready.deny.server")
 	var srv: Dictionary = _servers[party.server_id]
-	party.stage = DotParty.Stage.READY
+	party.stage = GSParty.Stage.READY
 	party.connect_info = {"serverId": party.server_id, "serverName": srv["name"], "url": srv["url"]}
 	for m in party.members():
 		m.ready_at = 0
@@ -352,55 +352,55 @@ func start(actor: String, party_id: String, server_id: int) -> DotResult:
 	var extra: Dictionary = _extra[party_id]
 	extra["ready_opened"] = now()
 	extra["deadline"] = 0
-	return DotResult.success(ready_view(actor, party_id).value)
+	return GSResult.success(ready_view(actor, party_id).value)
 
 
-func set_ready(user_id: String, party_id: String, is_ready: bool) -> DotResult:
+func set_ready(user_id: String, party_id: String, is_ready: bool) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.member(user_id) == null:
-		return _deny(DotError.CODE_STATE, "You are not in that party.", "party.ready.deny.member")
-	if party.stage != DotParty.Stage.READY:
-		return _deny(DotError.CODE_STATE, "There is no ready round open.", "party.ready.deny.stage")
+		return _deny(GSError.CODE_STATE, "You are not in that party.", "party.ready.deny.member")
+	if party.stage != GSParty.Stage.READY:
+		return _deny(GSError.CODE_STATE, "There is no ready round open.", "party.ready.deny.stage")
 	party.member(user_id).ready_at = now() if is_ready else 0
 	_evaluate_ready(party)
 	return ready_view(user_id, party_id)
 
 
-func connected(user_id: String, party_id: String) -> DotResult:
+func connected(user_id: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or party.member(user_id) == null:
-		return _deny(DotError.CODE_STATE, "You are not in that party.", "party.ready.deny.member")
+		return _deny(GSError.CODE_STATE, "You are not in that party.", "party.ready.deny.member")
 	party.member(user_id).connected_at = now()
 	_seen["%s|%s" % [party_id, user_id]] = now()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func force_start(actor: String, party_id: String) -> DotResult:
+func force_start(actor: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or not party.can_manage(actor):
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can start.", "party.manage.deny.role")
-	if party.stage != DotParty.Stage.READY:
-		return _deny(DotError.CODE_STATE, "There is no ready round open.", "party.ready.deny.stage")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can start.", "party.manage.deny.role")
+	if party.stage != GSParty.Stage.READY:
+		return _deny(GSError.CODE_STATE, "There is no ready round open.", "party.ready.deny.stage")
 	_start_match(party)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func cancel_ready(actor: String, party_id: String) -> DotResult:
+func cancel_ready(actor: String, party_id: String) -> GSResult:
 	var party := _live(party_id)
 	if party == null or not party.can_manage(actor):
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can do that.", "party.manage.deny.role")
-	party.stage = DotParty.Stage.LOBBY
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can do that.", "party.manage.deny.role")
+	party.stage = GSParty.Stage.LOBBY
 	party.connect_info = {}
 	(_extra[party_id] as Dictionary)["deadline"] = 0
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func ready_view(user_id: String, party_id: String) -> DotResult:
-	var party: DotParty = _parties.get(party_id)
+func ready_view(user_id: String, party_id: String) -> GSResult:
+	var party: GSParty = _parties.get(party_id)
 	if party == null:
-		return _deny(DotError.CODE_STATE, "No such party.", "party.deny.missing")
+		return _deny(GSError.CODE_STATE, "No such party.", "party.deny.missing")
 	var extra: Dictionary = _extra[party_id]
-	var r := DotPartyReady.new()
+	var r := GSPartyReady.new()
 	r.stage = party.stage
 	r.total = party.size()
 	r.ready = party.ready_count()
@@ -410,7 +410,7 @@ func ready_view(user_id: String, party_id: String) -> DotResult:
 	var deadline := int(extra["deadline"])
 	r.countdown_sec = maxi(0, deadline - now()) if deadline > 0 else -1
 	r.connect_info = party.connect_info.duplicate()
-	r.started = party.stage == DotParty.Stage.PLAYING
+	r.started = party.stage == GSParty.Stage.PLAYING
 	var me := party.member(user_id)
 	r.me = {
 		"isMember": me != null,
@@ -418,16 +418,16 @@ func ready_view(user_id: String, party_id: String) -> DotResult:
 		"connected": me != null and me.has_connected(),
 		"canManage": me != null and me.can_manage(),
 	}
-	return DotResult.success(r)
+	return GSResult.success(r)
 
 
 ## Timers: stale members leave, armed countdowns start rounds, bookings expire. The site
-## does these in worker crons; a hub needs a caller, and [DotPartyClient] is not it — a
+## does these in worker crons; a hub needs a caller, and [GSPartyClient] is not it — a
 ## hub is shared, so whoever owns it ticks it.
 func tick() -> void:
 	var t := now()
 	for p in _parties.values():
-		var party: DotParty = p
+		var party: GSParty = p
 		if not party.is_live():
 			continue
 		for m in party.members():
@@ -437,41 +437,41 @@ func tick() -> void:
 		if not party.is_live():
 			continue
 		var extra: Dictionary = _extra[party.id]
-		if party.stage == DotParty.Stage.READY and int(extra["deadline"]) > 0 and t >= int(extra["deadline"]):
+		if party.stage == GSParty.Stage.READY and int(extra["deadline"]) > 0 and t >= int(extra["deadline"]):
 			_start_match(party)
 	for r in _reservations:
-		if r.status == DotPartyReservation.Status.ACTIVE and t >= r.ends_at:
-			r.status = DotPartyReservation.Status.ENDED
+		if r.status == GSPartyReservation.Status.ACTIVE and t >= r.ends_at:
+			r.status = GSPartyReservation.Status.ENDED
 			r.released_at = r.ends_at
-		elif r.status == DotPartyReservation.Status.PENDING and t >= r.ends_at:
-			r.status = DotPartyReservation.Status.EXPIRED
+		elif r.status == GSPartyReservation.Status.PENDING and t >= r.ends_at:
+			r.status = GSPartyReservation.Status.EXPIRED
 
 
 # --- Reservations ------------------------------------------------------------
 
-func reservation_offer(party_id: String, server_id: int) -> DotResult:
+func reservation_offer(party_id: String, server_id: int) -> GSResult:
 	var srv: Dictionary = _servers.get(server_id, {})
 	if srv.is_empty():
-		return _deny(DotError.CODE_STATE, "No such server.", "party.reserve.deny.server")
-	var policy: DotPartyReservePolicy = srv["policy"]
-	return DotResult.success(policy.offer(
+		return _deny(GSError.CODE_STATE, "No such server.", "party.reserve.deny.server")
+	var policy: GSPartyReservePolicy = srv["policy"]
+	return GSResult.success(policy.offer(
 		now(), party_id, int(srv["humans"]), _held(server_id), _last_for(party_id, server_id), bool(srv["online"])
 	))
 
 
-func reserve(actor: String, party_id: String, server_id: int, minutes: int, want_private: bool) -> DotResult:
+func reserve(actor: String, party_id: String, server_id: int, minutes: int, want_private: bool) -> GSResult:
 	var party := _live(party_id)
 	if party == null or not party.can_manage(actor):
-		return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can book a server.", "party.manage.deny.role")
+		return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can book a server.", "party.manage.deny.role")
 	var offered := reservation_offer(party_id, server_id)
 	if not offered.ok:
 		return offered
-	var policy: DotPartyReservePolicy = (_servers[server_id] as Dictionary)["policy"]
+	var policy: GSPartyReservePolicy = (_servers[server_id] as Dictionary)["policy"]
 	var granted := policy.grant(now(), minutes, want_private, offered.value)
 	if not granted.ok:
 		return granted
 	var g: Dictionary = granted.value
-	var r := DotPartyReservation.new()
+	var r := GSPartyReservation.new()
 	r.id = str(_next_reservation)
 	_next_reservation += 1
 	r.server_id = server_id
@@ -480,100 +480,100 @@ func reserve(actor: String, party_id: String, server_id: int, minutes: int, want
 	r.is_private = bool(g["private"])
 	r.starts_at = int(g["starts_at"])
 	r.ends_at = int(g["ends_at"])
-	r.status = DotPartyReservation.Status.ACTIVE if policy.auto_approve else DotPartyReservation.Status.PENDING
+	r.status = GSPartyReservation.Status.ACTIVE if policy.auto_approve else GSPartyReservation.Status.PENDING
 	_reservations.append(r)
-	if r.status == DotPartyReservation.Status.ACTIVE:
+	if r.status == GSPartyReservation.Status.ACTIVE:
 		party.server_id = server_id
-	return DotResult.success(r)
+	return GSResult.success(r)
 
 
 ## The owner's half of a hand-approved booking.
-func decide(reservation_id: String, approve: bool) -> DotResult:
+func decide(reservation_id: String, approve: bool) -> GSResult:
 	for r in _reservations:
-		if r.id == reservation_id and r.status == DotPartyReservation.Status.PENDING:
-			r.status = DotPartyReservation.Status.ACTIVE if approve else DotPartyReservation.Status.DENIED
-			return DotResult.success(r)
-	return _deny(DotError.CODE_STATE, "That booking is not waiting for a decision.", "party.reserve.deny.state")
+		if r.id == reservation_id and r.status == GSPartyReservation.Status.PENDING:
+			r.status = GSPartyReservation.Status.ACTIVE if approve else GSPartyReservation.Status.DENIED
+			return GSResult.success(r)
+	return _deny(GSError.CODE_STATE, "That booking is not waiting for a decision.", "party.reserve.deny.state")
 
 
-func cancel_reservation(actor: String, reservation_id: String) -> DotResult:
+func cancel_reservation(actor: String, reservation_id: String) -> GSResult:
 	for r in _reservations:
 		if r.id != reservation_id:
 			continue
-		var party: DotParty = _parties.get(r.party_id)
+		var party: GSParty = _parties.get(r.party_id)
 		if party == null or not party.can_manage(actor):
-			return _deny(DotError.CODE_FORBIDDEN, "Only the host or a co-host can cancel a booking.", "party.manage.deny.role")
-		if r.status == DotPartyReservation.Status.ACTIVE:
-			r.status = DotPartyReservation.Status.ENDED
+			return _deny(GSError.CODE_FORBIDDEN, "Only the host or a co-host can cancel a booking.", "party.manage.deny.role")
+		if r.status == GSPartyReservation.Status.ACTIVE:
+			r.status = GSPartyReservation.Status.ENDED
 			r.released_at = now()
-		elif r.status == DotPartyReservation.Status.PENDING:
-			r.status = DotPartyReservation.Status.CANCELLED
-		return DotResult.success(r)
-	return _deny(DotError.CODE_STATE, "No such booking.", "party.reserve.deny.missing")
+		elif r.status == GSPartyReservation.Status.PENDING:
+			r.status = GSPartyReservation.Status.CANCELLED
+		return GSResult.success(r)
+	return _deny(GSError.CODE_STATE, "No such booking.", "party.reserve.deny.missing")
 
 
 ## What a game server asks: the booking it is under now, and the party it is for.
-## Value: [code]{reservation, party}[/code] or null. See [DotPartyReservations].
-func active_for_server(server_id: int) -> DotResult:
+## Value: [code]{reservation, party}[/code] or null. See [GSPartyReservations].
+func active_for_server(server_id: int) -> GSResult:
 	var t := now()
 	for r in _reservations:
 		if r.server_id == server_id and r.is_active_at(t):
-			var party: DotParty = _parties.get(r.party_id)
-			return DotResult.success({"reservation": r, "party": party.copy() if party != null else null})
-	return DotResult.success(null)
+			var party: GSParty = _parties.get(r.party_id)
+			return GSResult.success({"reservation": r, "party": party.copy() if party != null else null})
+	return GSResult.success(null)
 
 
-func mine(user_id: String) -> DotResult:
+func mine(user_id: String) -> GSResult:
 	for p in _parties.values():
-		var party: DotParty = p
+		var party: GSParty = p
 		if party.is_live() and party.member(user_id) != null:
-			return DotResult.success(party.copy())
-	return DotResult.success(null)
+			return GSResult.success(party.copy())
+	return GSResult.success(null)
 
 
-func fetch(party_id: String) -> DotResult:
-	var party: DotParty = _parties.get(party_id)
+func fetch(party_id: String) -> GSResult:
+	var party: GSParty = _parties.get(party_id)
 	if party == null:
-		return _deny(DotError.CODE_STATE, "No such party.", "party.deny.missing")
-	return DotResult.success(party.copy())
+		return _deny(GSError.CODE_STATE, "No such party.", "party.deny.missing")
+	return GSResult.success(party.copy())
 
 
 # --- Internals ---------------------------------------------------------------
 
-func _live(party_id: String) -> DotParty:
-	var party: DotParty = _parties.get(party_id)
+func _live(party_id: String) -> GSParty:
+	var party: GSParty = _parties.get(party_id)
 	if party == null or not party.is_live():
 		return null
 	return party
 
 
-func _end(party: DotParty) -> void:
+func _end(party: GSParty) -> void:
 	party.end_time = now()
 	for r in _reservations:
-		if r.party_id == party.id and (r.status == DotPartyReservation.Status.ACTIVE or r.status == DotPartyReservation.Status.PENDING):
-			r.status = DotPartyReservation.Status.ENDED if r.status == DotPartyReservation.Status.ACTIVE else DotPartyReservation.Status.CANCELLED
+		if r.party_id == party.id and (r.status == GSPartyReservation.Status.ACTIVE or r.status == GSPartyReservation.Status.PENDING):
+			r.status = GSPartyReservation.Status.ENDED if r.status == GSPartyReservation.Status.ACTIVE else GSPartyReservation.Status.CANCELLED
 			r.released_at = now()
 
 
 func _leave_every_party(user_id: String) -> String:
 	var left := ""
 	for p in _parties.values():
-		var party: DotParty = p
+		var party: GSParty = p
 		if party.is_live() and party.member(user_id) != null:
 			leave(user_id, party.id)
 			left = party.id
 	return left
 
 
-func _start_match(party: DotParty) -> void:
-	party.stage = DotParty.Stage.PLAYING
+func _start_match(party: GSParty) -> void:
+	party.stage = GSParty.Stage.PLAYING
 	(_extra[party.id] as Dictionary)["deadline"] = 0
 
 
 ## The site's rule: everybody ready starts it; a threshold share arms a countdown once;
 ## dropping below the threshold disarms it.
-func _evaluate_ready(party: DotParty) -> void:
-	if party.stage != DotParty.Stage.READY:
+func _evaluate_ready(party: GSParty) -> void:
+	if party.stage != GSParty.Stage.READY:
 		return
 	var extra: Dictionary = _extra[party.id]
 	var ready := party.ready_count()
@@ -581,7 +581,7 @@ func _evaluate_ready(party: DotParty) -> void:
 	if total > 0 and ready >= total:
 		_start_match(party)
 		return
-	if DotPartyReady.threshold_met(int(extra["auto_pct"]), ready, total):
+	if GSPartyReady.threshold_met(int(extra["auto_pct"]), ready, total):
 		if int(extra["deadline"]) == 0:
 			extra["deadline"] = now() + int(extra["auto_sec"])
 		return
@@ -599,36 +599,36 @@ func _consume_invite(party_id: String, user_id: String, token: String) -> bool:
 	return false
 
 
-func _is_friend(user_id: String, party: DotParty) -> bool:
+func _is_friend(user_id: String, party: GSParty) -> bool:
 	if not friends_fn.is_valid():
 		return false
 	return bool(friends_fn.call(user_id, party.host_id))
 
 
-func _held(server_id: int) -> DotPartyReservation:
+func _held(server_id: int) -> GSPartyReservation:
 	var t := now()
-	var best: DotPartyReservation = null
+	var best: GSPartyReservation = null
 	for r in _reservations:
 		if r.server_id != server_id or r.ends_at <= t:
 			continue
-		if r.status != DotPartyReservation.Status.ACTIVE and r.status != DotPartyReservation.Status.PENDING:
+		if r.status != GSPartyReservation.Status.ACTIVE and r.status != GSPartyReservation.Status.PENDING:
 			continue
 		if best == null or r.ends_at > best.ends_at:
 			best = r
 	return best
 
 
-func _last_for(party_id: String, server_id: int) -> DotPartyReservation:
-	var best: DotPartyReservation = null
+func _last_for(party_id: String, server_id: int) -> GSPartyReservation:
+	var best: GSPartyReservation = null
 	for r in _reservations:
 		if r.party_id != party_id or r.server_id != server_id:
 			continue
-		if r.status != DotPartyReservation.Status.ACTIVE and r.status != DotPartyReservation.Status.ENDED:
+		if r.status != GSPartyReservation.Status.ACTIVE and r.status != GSPartyReservation.Status.ENDED:
 			continue
 		if best == null or r.ends_at > best.ends_at:
 			best = r
 	return best
 
 
-static func _deny(code: String, message: String, key: String) -> DotResult:
-	return DotResult.fail(code, message, key)
+static func _deny(code: String, message: String, key: String) -> GSResult:
+	return GSResult.fail(code, message, key)

@@ -1,4 +1,4 @@
-class_name DotPartyMember
+class_name GSPartyMember
 extends RefCounted
 
 ## One person in a party, in the backbone's own vocabulary.
@@ -42,8 +42,8 @@ var deaths: int = 0
 var assist: int = 0
 
 
-static func of(p_user_id: String, p_name: String, p_role: Role = Role.MEMBER) -> DotPartyMember:
-	var m := DotPartyMember.new()
+static func of(p_user_id: String, p_name: String, p_role: Role = Role.MEMBER) -> GSPartyMember:
+	var m := GSPartyMember.new()
 	m.user_id = p_user_id
 	m.display_name = p_name
 	m.game_name = p_name
@@ -98,11 +98,11 @@ static func parse_presence(s: String) -> Presence:
 ##
 ## Tolerant of absent fields, strict about the one that matters: a member with no user id
 ## cannot be matched against anybody and is refused rather than kept as a ghost.
-static func from_dict(d: Dictionary) -> DotResult:
-	var m := DotPartyMember.new()
+static func from_dict(d: Dictionary) -> GSResult:
+	var m := GSPartyMember.new()
 	m.user_id = str(d.get("userId", d.get("user_id", "")))
 	if m.user_id == "":
-		return DotResult.fail(DotError.CODE_PARSE, "a party member with no user id", str(d))
+		return GSResult.fail(GSError.CODE_PARSE, "a party member with no user id", str(d))
 	m.display_name = str(d.get("displayName", d.get("display_name", "")))
 	m.game_name = str(d.get("gameName", d.get("game_name", m.display_name)))
 	if d.get("gameName") == null and d.has("gameName"):
@@ -110,14 +110,14 @@ static func from_dict(d: Dictionary) -> DotResult:
 	m.role = parse_role(str(d.get("role", "MEMBER")))
 	m.state = parse_state(str(d.get("state", "JOINED")))
 	m.presence = parse_presence(str(d.get("presence", "NONE")))
-	m.joined_at = DotPartyMember.parse_time(d.get("joinedAt", d.get("joined_at")))
-	m.ready_at = DotPartyMember.parse_time(d.get("readyAt", d.get("ready_at")))
-	m.connected_at = DotPartyMember.parse_time(d.get("connectedAt", d.get("connected_at")))
+	m.joined_at = GSPartyMember.parse_time(d.get("joinedAt", d.get("joined_at")))
+	m.ready_at = GSPartyMember.parse_time(d.get("readyAt", d.get("ready_at")))
+	m.connected_at = GSPartyMember.parse_time(d.get("connectedAt", d.get("connected_at")))
 	m.score = int(d.get("score", 0))
 	m.kills = int(d.get("kills", 0))
 	m.deaths = int(d.get("deaths", 0))
 	m.assist = int(d.get("assist", 0))
-	return DotResult.success(m)
+	return GSResult.success(m)
 
 
 func to_dict() -> Dictionary:
@@ -128,9 +128,9 @@ func to_dict() -> Dictionary:
 		"role": ROLE_NAMES[role],
 		"state": STATE_NAMES[state],
 		"presence": PRESENCE_NAMES[presence],
-		"joinedAt": DotPartyMember.format_time(joined_at),
-		"readyAt": DotPartyMember.format_time(ready_at),
-		"connectedAt": DotPartyMember.format_time(connected_at),
+		"joinedAt": GSPartyMember.format_time(joined_at),
+		"readyAt": GSPartyMember.format_time(ready_at),
+		"connectedAt": GSPartyMember.format_time(connected_at),
 		"score": score,
 		"kills": kills,
 		"deaths": deaths,
@@ -138,8 +138,8 @@ func to_dict() -> Dictionary:
 	}
 
 
-func copy() -> DotPartyMember:
-	var parsed := DotPartyMember.from_dict(to_dict())
+func copy() -> GSPartyMember:
+	var parsed := GSPartyMember.from_dict(to_dict())
 	return parsed.value
 
 

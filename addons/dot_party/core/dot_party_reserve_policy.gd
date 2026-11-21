@@ -1,5 +1,5 @@
 @tool
-class_name DotPartyReservePolicy
+class_name GSPartyReservePolicy
 extends Resource
 
 ## A server owner's terms for letting a party book their server.
@@ -118,8 +118,8 @@ func ceiling_minutes() -> int:
 ## Value: [code]{available, deny, allowPublic, allowPrivate, maxMinutes, opensAt, freeAt}[/code],
 ## with [code]deny[/code] one of the site's closed set: [code]off window taken already
 ## offline populated cooldown[/code].
-func offer(now: int, party_id: String, humans: int, held: DotPartyReservation = null,
-		last_for_party: DotPartyReservation = null, online: bool = true) -> Dictionary:
+func offer(now: int, party_id: String, humans: int, held: GSPartyReservation = null,
+		last_for_party: GSPartyReservation = null, online: bool = true) -> Dictionary:
 	var base := {
 		"available": true,
 		"deny": "",
@@ -139,8 +139,8 @@ func offer(now: int, party_id: String, humans: int, held: DotPartyReservation = 
 	var cap := ceiling_minutes()
 	base["maxMinutes"] = cap
 
-	if held != null and held.ends_at > now and (held.status == DotPartyReservation.Status.PENDING \
-			or held.status == DotPartyReservation.Status.ACTIVE):
+	if held != null and held.ends_at > now and (held.status == GSPartyReservation.Status.PENDING \
+			or held.status == GSPartyReservation.Status.ACTIVE):
 		var d := _deny(base, "already" if held.party_id == party_id else "taken")
 		d["maxMinutes"] = cap
 		d["freeAt"] = held.ends_at
@@ -158,8 +158,8 @@ func offer(now: int, party_id: String, humans: int, held: DotPartyReservation = 
 
 	if party_id != "" and cooldown_minutes > 0 and last_for_party != null \
 			and last_for_party.party_id == party_id \
-			and (last_for_party.status == DotPartyReservation.Status.ACTIVE \
-				or last_for_party.status == DotPartyReservation.Status.ENDED) \
+			and (last_for_party.status == GSPartyReservation.Status.ACTIVE \
+				or last_for_party.status == GSPartyReservation.Status.ENDED) \
 			and last_for_party.ends_at > now - cooldown_minutes * 60:
 		var d := _deny(base, "cooldown")
 		d["maxMinutes"] = cap
@@ -178,7 +178,7 @@ func offer(now: int, party_id: String, humans: int, held: DotPartyReservation = 
 ##
 ## Value: [code]{starts_at, ends_at, minutes, private}[/code]; the refusal's detail is the
 ## site's [code]party.reserve.deny.*[/code] key.
-func grant(now: int, minutes: int, want_private: bool, offer_value: Dictionary) -> DotResult:
+func grant(now: int, minutes: int, want_private: bool, offer_value: Dictionary) -> GSResult:
 	if not bool(offer_value.get("available", false)):
 		return _refuse(str(offer_value.get("deny", "off")))
 	if want_private and not allows_private():
@@ -194,14 +194,14 @@ func grant(now: int, minutes: int, want_private: bool, offer_value: Dictionary) 
 	var granted := int(round(float(ends - now) / 60.0))
 	if granted < MIN_MINUTES:
 		return _refuse("window")
-	return DotResult.success({"starts_at": now, "ends_at": ends, "minutes": granted, "private": want_private})
+	return GSResult.success({"starts_at": now, "ends_at": ends, "minutes": granted, "private": want_private})
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	for d in days:
 		if d < 0 or d > 6:
-			return DotResult.fail(DotError.CODE_INVALID, "a booking day is 0 (Sunday) to 6", str(d))
-	return DotResult.success(null)
+			return GSResult.fail(GSError.CODE_INVALID, "a booking day is 0 (Sunday) to 6", str(d))
+	return GSResult.success(null)
 
 
 func describe_lines() -> PackedStringArray:
@@ -244,7 +244,7 @@ static func _deny(base: Dictionary, reason: String) -> Dictionary:
 	return d
 
 
-static func _refuse(reason: String) -> DotResult:
+static func _refuse(reason: String) -> GSResult:
 	var messages := {
 		"off": "This server is not taking party bookings.",
 		"window": "This server is outside its booking hours.",
@@ -255,8 +255,8 @@ static func _refuse(reason: String) -> DotResult:
 		"cooldown": "Your party booked this server recently. Try again shortly.",
 		"shape": "This server does not offer that kind of booking.",
 	}
-	return DotResult.fail(
-		DotError.CODE_CONFLICT if reason != "shape" else DotError.CODE_INVALID,
+	return GSResult.fail(
+		GSError.CODE_CONFLICT if reason != "shape" else GSError.CODE_INVALID,
 		str(messages.get(reason, "This server cannot be booked right now.")),
 		"party.reserve.deny.%s" % reason
 	)

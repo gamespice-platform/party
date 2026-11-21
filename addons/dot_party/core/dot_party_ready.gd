@@ -1,4 +1,4 @@
-class_name DotPartyReady
+class_name GSPartyReady
 extends RefCounted
 
 ## The ready round: who is ready, who has connected, and whether it is about to start.
@@ -9,7 +9,7 @@ extends RefCounted
 ## countdown that drops back below the threshold is disarmed, so one person un-readying
 ## is not a start nobody wanted.
 
-var stage: DotParty.Stage = DotParty.Stage.LOBBY
+var stage: GSParty.Stage = GSParty.Stage.LOBBY
 var total: int = 0
 var ready: int = 0
 ## Percent ready, 0-100.
@@ -26,9 +26,9 @@ var started: bool = false
 var me: Dictionary = {}
 
 
-static func from_dict(d: Dictionary) -> DotPartyReady:
-	var r := DotPartyReady.new()
-	r.stage = DotParty.parse_stage(str(d.get("stage", "LOBBY")))
+static func from_dict(d: Dictionary) -> GSPartyReady:
+	var r := GSPartyReady.new()
+	r.stage = GSParty.parse_stage(str(d.get("stage", "LOBBY")))
 	r.total = int(d.get("total", 0))
 	r.ready = int(d.get("ready", 0))
 	r.pct = int(d.get("pct", 0))
@@ -45,7 +45,7 @@ static func from_dict(d: Dictionary) -> DotPartyReady:
 
 func to_dict() -> Dictionary:
 	return {
-		"stage": DotParty.STAGE_NAMES[stage],
+		"stage": GSParty.STAGE_NAMES[stage],
 		"total": total,
 		"ready": ready,
 		"pct": pct,

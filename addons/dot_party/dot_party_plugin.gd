@@ -10,17 +10,17 @@ const _ICON := "res://addons/dot_party/icon_placeholder.svg"
 
 const _TYPES := [
 	[
-		"DotPartyClient",
+		"GSPartyClient",
 		"Node",
 		"res://addons/dot_party/runtime/dot_party_client.gd",
 	],
 	[
-		"DotPartyServer",
+		"GSPartyServer",
 		"Node",
 		"res://addons/dot_party/server/dot_party_server.gd",
 	],
 	[
-		"DotPartyReservations",
+		"GSPartyReservations",
 		"Node",
 		"res://addons/dot_party/server/dot_party_reservations.gd",
 	],

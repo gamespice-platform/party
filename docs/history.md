@@ -4,7 +4,7 @@ What building GameSpice Party found. The lessons that still apply are in [design
 
 ## `is_connected()` shadowed `Object.is_connected`
 
-A method of that name on `DotPartyMember` made every script in the addon fail to parse, each blaming a different line, as [gdscript-hazards.md](../../../docs/gdscript-hazards.md) describes. It is `has_connected()`.
+A method of that name on `GSPartyMember` made every script in the addon fail to parse, each blaming a different line, as [gdscript-hazards.md](../../../docs/gdscript-hazards.md) describes. It is `has_connected()`.
 
 ## The first refusal keys were invented
 
@@ -12,7 +12,7 @@ A method of that name on `DotPartyMember` made every script in the addon fail to
 
 ## GameSpice Auth read a refusal shape the site never sends
 
-GameSpice Auth's `_app_refusal` looked for `{ok: false, error: {code, message}}`; the site's `ApiErrorSchema` sends `{ok: false, code, message, retryAfter?}` flat. Every refusal through `DotAuthClient.post_app` / `get_app` lost the site's code and message, including GameSpice Stats' app-token submissions. Fixed in GameSpice Auth (flat first, nested still accepted), with a suite section there.
+GameSpice Auth's `_app_refusal` looked for `{ok: false, error: {code, message}}`; the site's `ApiErrorSchema` sends `{ok: false, code, message, retryAfter?}` flat. Every refusal through `GSAuthClient.post_app` / `get_app` lost the site's code and message, including GameSpice Stats' app-token submissions. Fixed in GameSpice Auth (flat first, nested still accepted), with a suite section there.
 
 ## `mine()` returning null cost the kick reason
 

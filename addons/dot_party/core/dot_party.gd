@@ -1,4 +1,4 @@
-class_name DotParty
+class_name GSParty
 extends RefCounted
 
 ## A party: people who play together, and what they are doing right now.
@@ -6,7 +6,7 @@ extends RefCounted
 ## [b]The backbone owns it; this is a copy.[/b] website-city is where a party is created,
 ## joined, invited to and ended, and every client and server holds a snapshot that is only
 ## as fresh as its last poll. So nothing in this class decides anything — it describes, and
-## [DotPartyBackend] is where a change is asked for. A game that edited a snapshot and
+## [GSPartyBackend] is where a change is asked for. A game that edited a snapshot and
 ## treated that as the party would be the second copy that goes stale, which is the bug
 ## GameSpice Player was written to remove.
 ##
@@ -56,7 +56,7 @@ var start_time: int = 0
 var end_time: int = 0
 
 ## Everybody the snapshot saw, including those who left. [method members] is who is in it.
-var roster: Array[DotPartyMember] = []
+var roster: Array[GSPartyMember] = []
 
 ## Where to connect when the stage is READY: [code]{serverId, serverName, url}[/code], or
 ## empty. The URL is the site's resolved connect template for the app. Not called
@@ -79,8 +79,8 @@ func is_live() -> bool:
 
 
 ## Members who are in the party now.
-func members() -> Array[DotPartyMember]:
-	var out: Array[DotPartyMember] = []
+func members() -> Array[GSPartyMember]:
+	var out: Array[GSPartyMember] = []
 	for m in roster:
 		if m.is_joined():
 			out.append(m)
@@ -95,7 +95,7 @@ func is_full() -> bool:
 	return size() >= max_users
 
 
-func member(user_id: String) -> DotPartyMember:
+func member(user_id: String) -> GSPartyMember:
 	for m in roster:
 		if m.user_id == user_id and m.is_joined():
 			return m
@@ -106,9 +106,9 @@ func has_member(user_id: String) -> bool:
 	return member(user_id) != null
 
 
-func host() -> DotPartyMember:
+func host() -> GSPartyMember:
 	for m in members():
-		if m.role == DotPartyMember.Role.HOST:
+		if m.role == GSPartyMember.Role.HOST:
 			return m
 	return null
 
@@ -153,7 +153,7 @@ static func parse_type(s: String) -> Type:
 ## Reads what the backbone sends: either [code]{party, members}[/code], as its
 ## [code]GET party/{id}[/code] answers, or a flat party object with a [code]members[/code]
 ## list in it.
-static func from_dict(d: Dictionary) -> DotResult:
+static func from_dict(d: Dictionary) -> GSResult:
 	var body: Dictionary = d
 	var rows: Variant = d.get("members", [])
 	if d.get("party") is Dictionary:
@@ -161,22 +161,22 @@ static func from_dict(d: Dictionary) -> DotResult:
 		if not (rows is Array) or (rows as Array).is_empty():
 			rows = body.get("members", [])
 
-	var p := DotParty.new()
+	var p := GSParty.new()
 	p.id = str(body.get("id", ""))
-	if not DotParty.is_id(p.id):
-		return DotResult.fail(DotError.CODE_PARSE, "a party id is a decimal string of up to 20 digits", p.id)
+	if not GSParty.is_id(p.id):
+		return GSResult.fail(GSError.CODE_PARSE, "a party id is a decimal string of up to 20 digits", p.id)
 	p.name = str(body.get("name", "")) if body.get("name") != null else ""
-	p.type = DotParty.parse_type(str(body.get("type", "PUBLIC")))
+	p.type = GSParty.parse_type(str(body.get("type", "PUBLIC")))
 	p.tech_type = str(body.get("techType", "")) if body.get("techType") != null else ""
 	p.max_users = int(body.get("maxUsers", 8))
-	p.stage = DotParty.parse_stage(str(body.get("stage", "LOBBY")))
+	p.stage = GSParty.parse_stage(str(body.get("stage", "LOBBY")))
 	p.host_id = str(body.get("hostId", "")) if body.get("hostId") != null else ""
 	p.app_id = int(body.get("appId", 0)) if body.get("appId") != null else 0
 	p.server_id = int(body.get("serverId", 0)) if body.get("serverId") != null else 0
 	p.map_name = str(body.get("mapName", "")) if body.get("mapName") != null else ""
 	p.game_mode = str(body.get("gameMode", "")) if body.get("gameMode") != null else ""
-	p.start_time = DotPartyMember.parse_time(body.get("startTime"))
-	p.end_time = DotPartyMember.parse_time(body.get("endTime"))
+	p.start_time = GSPartyMember.parse_time(body.get("startTime"))
+	p.end_time = GSPartyMember.parse_time(body.get("endTime"))
 	if body.get("connect") is Dictionary:
 		p.connect_info = (body["connect"] as Dictionary).duplicate()
 
@@ -184,7 +184,7 @@ static func from_dict(d: Dictionary) -> DotResult:
 		for r in rows:
 			if not (r is Dictionary):
 				continue
-			var parsed := DotPartyMember.from_dict(r as Dictionary)
+			var parsed := GSPartyMember.from_dict(r as Dictionary)
 			if not parsed.ok:
 				return parsed.wrap("party %s" % p.id)
 			p.roster.append(parsed.value)
@@ -193,9 +193,9 @@ static func from_dict(d: Dictionary) -> DotResult:
 	# snapshot that disagreed with itself would have two answers to "who can kick".
 	if p.host_id != "":
 		for m in p.roster:
-			if m.user_id == p.host_id and m.role != DotPartyMember.Role.HOST and m.is_joined():
-				m.role = DotPartyMember.Role.HOST
-	return DotResult.success(p)
+			if m.user_id == p.host_id and m.role != GSPartyMember.Role.HOST and m.is_joined():
+				m.role = GSPartyMember.Role.HOST
+	return GSResult.success(p)
 
 
 func to_dict() -> Dictionary:
@@ -214,16 +214,16 @@ func to_dict() -> Dictionary:
 		"serverId": server_id if server_id > 0 else null,
 		"mapName": map_name,
 		"gameMode": game_mode,
-		"startTime": DotPartyMember.format_time(start_time),
-		"endTime": DotPartyMember.format_time(end_time),
+		"startTime": GSPartyMember.format_time(start_time),
+		"endTime": GSPartyMember.format_time(end_time),
 		"users": size(),
 		"connect": connect_info,
 		"members": rows,
 	}
 
 
-func copy() -> DotParty:
-	var parsed := DotParty.from_dict(to_dict())
+func copy() -> GSParty:
+	var parsed := GSParty.from_dict(to_dict())
 	return parsed.value
 
 

@@ -1,4 +1,4 @@
-class_name DotPartyClient
+class_name GSPartyClient
 extends Node
 
 ## The player's party, kept current, and the thing that takes them to where it is playing.
@@ -28,37 +28,37 @@ extends Node
 
 const CHANNEL := "party.client"
 
-signal party_changed(party: DotParty)
-signal joined_party(party: DotParty)
+signal party_changed(party: GSParty)
+signal joined_party(party: GSParty)
 ## [param reason]: "left", "kicked", "banned", "ended".
 signal left_party(party_id: String, reason: String)
-signal member_joined(member: DotPartyMember)
+signal member_joined(member: GSPartyMember)
 ## [param reason]: "left", "kicked", "banned", "stale".
-signal member_left(member: DotPartyMember, reason: String)
-signal role_changed(member: DotPartyMember, old_role: DotPartyMember.Role)
-signal stage_changed(old_stage: DotParty.Stage, new_stage: DotParty.Stage)
-signal ready_changed(member: DotPartyMember)
+signal member_left(member: GSPartyMember, reason: String)
+signal role_changed(member: GSPartyMember, old_role: GSPartyMember.Role)
+signal stage_changed(old_stage: GSParty.Stage, new_stage: GSParty.Stage)
+signal ready_changed(member: GSPartyMember)
 ## The party wants everybody on this server now. Once per ready round.
 signal connect_requested(url: String, info: Dictionary)
 ## A request to the backbone failed. The snapshot is unchanged.
-signal request_failed(what: String, error: DotError)
+signal request_failed(what: String, error: GSError)
 
-@export var config: DotPartyConfig = null
+@export var config: GSPartyConfig = null
 
 ## Connect and report arrival automatically when the ready round opens.
 @export var follow: bool = true
 
-var backend: DotPartyBackend = null
+var backend: GSPartyBackend = null
 
 ## This player's backbone user id, so the client can tell "I was kicked" from "Sam was".
 var user_id: String = ""
 
-## [code]func(url: String, info: Dictionary) -> DotResult[/code], awaited. The game's
+## [code]func(url: String, info: Dictionary) -> GSResult[/code], awaited. The game's
 ## "connect to this server". Without one, [signal connect_requested] is all that happens.
 var connect_fn: Callable = Callable()
 
 ## The current snapshot, or null when not in a party.
-var party: DotParty = null
+var party: GSParty = null
 
 ## The round already followed, as "partyId|serverId|url", so a poll during a round does not
 ## connect a second time. Cleared when the party goes back to its lobby.
@@ -70,7 +70,7 @@ var _busy: bool = false
 
 func _ready() -> void:
 	if config == null:
-		config = DotPartyConfig.new()
+		config = GSPartyConfig.new()
 
 
 func _process(delta: float) -> void:
@@ -88,36 +88,36 @@ func _process(delta: float) -> void:
 
 ## How often to poll now: fast in a ready round, relaxed otherwise.
 func poll_interval() -> float:
-	if party != null and party.stage == DotParty.Stage.READY:
+	if party != null and party.stage == GSParty.Stage.READY:
 		return config.ready_poll_sec
 	return config.poll_sec
 
 
 ## Fetches the current party and applies it. Safe to call at any time; overlapping calls
 ## are dropped rather than queued, because the second answer would only repeat the first.
-func refresh() -> DotResult:
+func refresh() -> GSResult:
 	if backend == null or _busy:
-		return DotResult.success(party)
+		return GSResult.success(party)
 	_busy = true
-	var res: DotResult = await backend.mine()
+	var res: GSResult = await backend.mine()
 	_busy = false
 	if not res.ok:
 		request_failed.emit("refresh", res.error)
 		return res
-	var next: DotParty = res.value
+	var next: GSParty = res.value
 	if next == null and party != null:
 		# "In no party" does not say why. The party we were in does — our own row in it
 		# reads KICKED or BANNED — and a player told they "left" a party they were thrown
 		# out of goes looking for a bug.
 		_busy = true
-		var old: DotResult = await backend.fetch(party.id)
+		var old: GSResult = await backend.fetch(party.id)
 		_busy = false
 		if old.ok and old.value != null:
 			next = old.value
-	if next != null and next.stage == DotParty.Stage.READY and next.connect_info.is_empty():
+	if next != null and next.stage == GSParty.Stage.READY and next.connect_info.is_empty():
 		await _fill_connect(next)
 	apply_snapshot(next)
-	return DotResult.success(party)
+	return GSResult.success(party)
 
 
 ## Where a ready round wants its members, when the snapshot did not say.
@@ -131,16 +131,16 @@ func refresh() -> DotResult:
 ## never sent. Asking the ready view is also what the site's own ready screen does, and
 ## reading it is what fires an auto-start whose countdown lapsed. The local hub puts the
 ## address in the snapshot already, so this asks nothing of it.
-func _fill_connect(next: DotParty) -> void:
+func _fill_connect(next: GSParty) -> void:
 	_busy = true
-	var res: DotResult = await backend.ready_state(next.id)
+	var res: GSResult = await backend.ready_state(next.id)
 	_busy = false
-	if not res.ok or not (res.value is DotPartyReady):
-		DotLog.debug(CHANNEL, "the ready view did not say where to connect", {
+	if not res.ok or not (res.value is GSPartyReady):
+		GSLog.debug(CHANNEL, "the ready view did not say where to connect", {
 			"party": next.id, "detail": str(res.error) if res.error != null else "",
 		})
 		return
-	var view: DotPartyReady = res.value
+	var view: GSPartyReady = res.value
 	if not view.connect_info.is_empty():
 		next.connect_info = view.connect_info.duplicate()
 
@@ -149,7 +149,7 @@ func _fill_connect(next: DotParty) -> void:
 ##
 ## A snapshot of a party this player is not a live member of — ended, or one they were
 ## kicked from between two polls — is the same as null, with the reason read off it.
-func apply_snapshot(next: DotParty) -> void:
+func apply_snapshot(next: GSParty) -> void:
 	var in_next := next != null and next.is_live() and (user_id == "" or next.member(user_id) != null)
 	var prev := party
 
@@ -173,7 +173,7 @@ func apply_snapshot(next: DotParty) -> void:
 		if prev.stage != next.stage:
 			stage_changed.emit(prev.stage, next.stage)
 			# Back in the lobby: the next ready round is a new one, even on the same server.
-			if next.stage == DotParty.Stage.LOBBY or next.stage == DotParty.Stage.SEARCHING:
+			if next.stage == GSParty.Stage.LOBBY or next.stage == GSParty.Stage.SEARCHING:
 				_followed_round = ""
 
 	party_changed.emit(next)
@@ -181,7 +181,7 @@ func apply_snapshot(next: DotParty) -> void:
 
 
 ## Why this player is no longer in [param prev], from what [param next] says about them.
-func _departure_reason(prev: DotParty, next: DotParty) -> String:
+func _departure_reason(prev: GSParty, next: GSParty) -> String:
 	if next == null or next.id != prev.id:
 		return "left"
 	if not next.is_live():
@@ -189,14 +189,14 @@ func _departure_reason(prev: DotParty, next: DotParty) -> String:
 	for m in next.roster:
 		if m.user_id != user_id:
 			continue
-		if m.state == DotPartyMember.State.KICKED:
+		if m.state == GSPartyMember.State.KICKED:
 			return "kicked"
-		if m.state == DotPartyMember.State.BANNED:
+		if m.state == GSPartyMember.State.BANNED:
 			return "banned"
 	return "left"
 
 
-func _diff_members(prev: DotParty, next: DotParty) -> void:
+func _diff_members(prev: GSParty, next: GSParty) -> void:
 	# Keyed by user id and compared as Strings. Iteration order is the roster's, which is
 	# the backbone's join order, so two clients announce the same people in the same order.
 	var before := {}
@@ -210,7 +210,7 @@ func _diff_members(prev: DotParty, next: DotParty) -> void:
 		if not before.has(m.user_id):
 			member_joined.emit(m)
 			continue
-		var old: DotPartyMember = before[m.user_id]
+		var old: GSPartyMember = before[m.user_id]
 		if old.role != m.role:
 			role_changed.emit(m, old.role)
 		if old.is_ready() != m.is_ready():
@@ -223,15 +223,15 @@ func _diff_members(prev: DotParty, next: DotParty) -> void:
 		for row in next.roster:
 			if row.user_id == m.user_id:
 				match row.state:
-					DotPartyMember.State.KICKED:
+					GSPartyMember.State.KICKED:
 						reason = "kicked"
-					DotPartyMember.State.BANNED:
+					GSPartyMember.State.BANNED:
 						reason = "banned"
 		member_left.emit(m, reason)
 
 
-func _maybe_follow(p: DotParty) -> void:
-	if p.stage != DotParty.Stage.READY or p.connect_info.is_empty():
+func _maybe_follow(p: GSParty) -> void:
+	if p.stage != GSParty.Stage.READY or p.connect_info.is_empty():
 		return
 	var url := str(p.connect_info.get("url", ""))
 	if url == "":
@@ -247,8 +247,8 @@ func _maybe_follow(p: DotParty) -> void:
 
 func _follow(party_id: String, url: String, info: Dictionary) -> void:
 	var res: Variant = await connect_fn.call(url, info)
-	if res is DotResult and not (res as DotResult).ok:
-		DotLog.warn(CHANNEL, "could not follow the party", {"url": url, "detail": str((res as DotResult).error)})
+	if res is GSResult and not (res as GSResult).ok:
+		GSLog.warn(CHANNEL, "could not follow the party", {"url": url, "detail": str((res as GSResult).error)})
 		# Let the next poll try again rather than leaving the player behind for good.
 		_followed_round = ""
 		return
@@ -260,55 +260,55 @@ func _follow(party_id: String, url: String, info: Dictionary) -> void:
 # Each asks the backend and then refreshes, so the snapshot and its signals come from what
 # the backbone now says rather than from what this client assumed it would say.
 
-func create(options: Dictionary) -> DotResult:
+func create(options: Dictionary) -> GSResult:
 	return await _act("create", backend.create.bind(options))
 
 
-func join(party_id: String, password: String = "", token: String = "") -> DotResult:
-	if not DotParty.is_id(party_id):
-		return DotResult.fail(DotError.CODE_INVALID, "That is not a party id.", party_id)
+func join(party_id: String, password: String = "", token: String = "") -> GSResult:
+	if not GSParty.is_id(party_id):
+		return GSResult.fail(GSError.CODE_INVALID, "That is not a party id.", party_id)
 	return await _act("join", backend.join.bind(party_id, password, token))
 
 
-func leave() -> DotResult:
+func leave() -> GSResult:
 	if party == null:
-		return DotResult.success(null)
+		return GSResult.success(null)
 	return await _act("leave", backend.leave.bind(party.id))
 
 
-func kick(target_user_id: String, ban: bool = false) -> DotResult:
+func kick(target_user_id: String, ban: bool = false) -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("kick", backend.kick.bind(party.id, target_user_id, ban))
 
 
-func invite(user_ids: PackedStringArray, message: String = "") -> DotResult:
+func invite(user_ids: PackedStringArray, message: String = "") -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("invite", backend.invite.bind(party.id, user_ids, message))
 
 
-func start(server_id: int = 0) -> DotResult:
+func start(server_id: int = 0) -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("start", backend.start.bind(party.id, server_id))
 
 
-func set_ready(is_ready: bool = true) -> DotResult:
+func set_ready(is_ready: bool = true) -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("set_ready", backend.set_ready.bind(party.id, is_ready))
 
 
-func report_connected() -> DotResult:
+func report_connected() -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("connected", backend.connected.bind(party.id))
 
 
-func reserve(server_id: int, minutes: int, private: bool = false) -> DotResult:
+func reserve(server_id: int, minutes: int, private: bool = false) -> GSResult:
 	if party == null:
-		return DotResult.fail(DotError.CODE_STATE, "You are not in a party.")
+		return GSResult.fail(GSError.CODE_STATE, "You are not in a party.")
 	return await _act("reserve", backend.reserve.bind(party.id, server_id, minutes, private))
 
 
@@ -329,16 +329,16 @@ func describe_lines() -> PackedStringArray:
 ## [param fn] is a bound backend method rather than its result. Calling a coroutine and
 ## passing on what it returned would hand over a suspended call, and whether awaiting that
 ## later works is not something to find out against the one backend the suite does not use.
-func _act(what: String, fn: Callable) -> DotResult:
+func _act(what: String, fn: Callable) -> GSResult:
 	var res: Variant = await fn.call()
-	if res is DotResult and not (res as DotResult).ok:
-		request_failed.emit(what, (res as DotResult).error)
+	if res is GSResult and not (res as GSResult).ok:
+		request_failed.emit(what, (res as GSResult).error)
 		return res
 	await refresh()
-	return res if res is DotResult else DotResult.success(res)
+	return res if res is GSResult else GSResult.success(res)
 
 
 func _beat() -> void:
-	var res: DotResult = await backend.heartbeat(party.id)
+	var res: GSResult = await backend.heartbeat(party.id)
 	if not res.ok:
 		request_failed.emit("heartbeat", res.error)

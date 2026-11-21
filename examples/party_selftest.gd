@@ -27,7 +27,7 @@ var _now: Array[int] = [1_790_000_000]
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	await _run()
 
 
@@ -84,9 +84,9 @@ const SITE_PARTY := """{
 func _test_backbone_shapes() -> void:
 	_section("The backbone's party shapes, read as the site sends them")
 
-	var parsed := DotParty.from_dict(JSON.parse_string(SITE_PARTY) as Dictionary)
+	var parsed := GSParty.from_dict(JSON.parse_string(SITE_PARTY) as Dictionary)
 	_check(parsed.ok, "the documented GET party/{id} answer parses")
-	var p: DotParty = parsed.value
+	var p: GSParty = parsed.value
 	_check(p.id == "4471" and p.max_users == 10 and p.server_id == 4821, "with its id, size and server")
 	_check(p.is_live(), "a null endTime is a live party")
 	_check(p.start_time == 1785355200, "an ISO time with milliseconds and a Z reads as the right second")
@@ -95,20 +95,20 @@ func _test_backbone_shapes() -> void:
 	_check(host.server_uid() == "backbone:clx1", "and is recognised on a server by the uid dot-auth gives a session")
 
 	# An id past 2^53 is exactly why the site sends a string.
-	var big := DotParty.from_dict({"party": {"id": "9007199254740993"}, "members": []})
-	_check(big.ok and (big.value as DotParty).id == "9007199254740993", "an id past 2^53 survives, because it is never a number")
-	_check(not DotParty.from_dict({"party": {"id": "12a"}}).ok, "and an id that is not decimal is refused")
-	_check(not DotParty.is_id("123456789012345678901"), "as is one longer than a 64-bit integer")
+	var big := GSParty.from_dict({"party": {"id": "9007199254740993"}, "members": []})
+	_check(big.ok and (big.value as GSParty).id == "9007199254740993", "an id past 2^53 survives, because it is never a number")
+	_check(not GSParty.from_dict({"party": {"id": "12a"}}).ok, "and an id that is not decimal is refused")
+	_check(not GSParty.is_id("123456789012345678901"), "as is one longer than a 64-bit integer")
 
-	var disagree := DotParty.from_dict({"id": "5", "hostId": "u2", "members": [
+	var disagree := GSParty.from_dict({"id": "5", "hostId": "u2", "members": [
 		{"userId": "u1", "role": "HOST"}, {"userId": "u2", "role": "MEMBER"},
 	]})
-	_check((disagree.value as DotParty).member("u2").role == DotPartyMember.Role.HOST, "the party's hostId wins when a row disagrees")
-	_check(not DotPartyMember.from_dict({"displayName": "ghost"}).ok, "a member with no user id is refused rather than kept as a ghost")
+	_check((disagree.value as GSParty).member("u2").role == GSPartyMember.Role.HOST, "the party's hostId wins when a row disagrees")
+	_check(not GSPartyMember.from_dict({"displayName": "ghost"}).ok, "a member with no user id is refused rather than kept as a ghost")
 
 	var back := p.copy()
 	_check(back.member("clx1").joined_at == p.member("clx1").joined_at, "a party round-trips through its own dictionary")
-	_check(str(DotPartyMember.format_time(1785355200))[10] == "T", "and writes times with the T, as RFC 3339 wants")
+	_check(str(GSPartyMember.format_time(1785355200))[10] == "T", "and writes times with the T, as RFC 3339 wants")
 
 
 # --- 2 ----------------------------------------------------------------------
@@ -123,19 +123,19 @@ func _test_membership() -> void:
 
 	var made := ada.create({"name": "Friday", "maxUsers": 2})
 	_check(made.ok, "a party is created")
-	var pid := (made.value as DotParty).id
+	var pid := (made.value as GSParty).id
 	_check(not ada.create({"name": "again"}).ok, "and its host cannot host a second")
 
 	_check(bo.join(pid).ok, "someone joins")
 	var full := cy.join(pid)
 	_check(not full.ok and full.error.detail == "party.join.deny.full", "a full party refuses with the site's own reason key")
 
-	var other: DotParty = cy.create({"name": "Other"}).value
+	var other: GSParty = cy.create({"name": "Other"}).value
 	var moved := bo.join(other.id)
 	_check(moved.ok and str((moved.value as Dictionary)["leftPartyId"]) == pid, "joining a second party leaves the first, and says which")
-	_check(not (hub.fetch(pid).value as DotParty).has_member("bo"), "so nobody is in two live parties")
+	_check(not (hub.fetch(pid).value as GSParty).has_member("bo"), "so nobody is in two live parties")
 
-	var secret: DotParty = hub.as_user("dee").create({"type": "PRIVATE"}).value
+	var secret: GSParty = hub.as_user("dee").create({"type": "PRIVATE"}).value
 	var shut := ada.join(secret.id)
 	_check(not shut.ok and shut.error.detail == "party.join.deny.needInvite", "a private party refuses a stranger, with the site's key for it")
 	var again_in := bo.join(other.id)
@@ -143,36 +143,36 @@ func _test_membership() -> void:
 
 	var pw := hub.as_user("eve").create({"type": "PUBLIC_PASSWORD", "password": "hunter22"})
 	_check(pw.ok, "a password party is created")
-	var pw_id := (pw.value as DotParty).id
+	var pw_id := (pw.value as GSParty).id
 	var wrong := hub.as_user("fay").join(pw_id, "wrong")
 	_check(not wrong.ok and wrong.error.detail == "party.join.deny.wrongPassword", "the wrong password is refused")
 	_check(hub.as_user("fay").join(pw_id, "hunter22").ok, "the right one is not")
 	_check(not hub.as_user("gus").create({"type": "PUBLIC_PASSWORD", "password": "abc"}).ok, "a password under four characters is refused at creation")
 
 	# The host leaving does not end it; the last one out does.
-	var h: DotParty = hub.as_user("hal").create({}).value
+	var h: GSParty = hub.as_user("hal").create({}).value
 	hub.as_user("ivy").join(h.id)
 	hub.as_user("hal").leave(h.id)
-	_check((hub.fetch(h.id).value as DotParty).is_live(), "the host leaving does not end a party")
+	_check((hub.fetch(h.id).value as GSParty).is_live(), "the host leaving does not end a party")
 	hub.as_user("ivy").leave(h.id)
-	_check(not (hub.fetch(h.id).value as DotParty).is_live(), "the last member leaving does")
+	_check(not (hub.fetch(h.id).value as GSParty).is_live(), "the last member leaving does")
 
 	# A host who stepped out of a full party always gets back in.
-	var small: DotParty = hub.as_user("lia").create({"maxUsers": 2}).value
+	var small: GSParty = hub.as_user("lia").create({"maxUsers": 2}).value
 	hub.as_user("max").join(small.id)
 	hub.as_user("lia").leave(small.id)
 	hub.as_user("ned").join(small.id)
 	_check(hub.as_user("lia").join(small.id).ok, "the host rejoins their own party even when it has filled up")
-	_check((hub.fetch(small.id).value as DotParty).host().user_id == "lia", "as its host")
+	_check((hub.fetch(small.id).value as GSParty).host().user_id == "lia", "as its host")
 
 	# Silence is leaving.
-	var q: DotParty = hub.as_user("jo").create({}).value
+	var q: GSParty = hub.as_user("jo").create({}).value
 	hub.as_user("kim").join(q.id)
 	_now[0] += 100
 	hub.as_user("jo").heartbeat(q.id)
 	_now[0] += 100
 	hub.tick()
-	var after: DotParty = hub.fetch(q.id).value
+	var after: GSParty = hub.fetch(q.id).value
 	_check(after.has_member("jo") and not after.has_member("kim"), "a member not heard from in 150 seconds is dropped, and one who heartbeat is not")
 
 
@@ -186,25 +186,25 @@ func _test_roles() -> void:
 	var co := hub.as_user("c")
 	var co2 := hub.as_user("c2")
 	var m := hub.as_user("m")
-	var pid: String = (host.create({}).value as DotParty).id
+	var pid: String = (host.create({}).value as GSParty).id
 	co.join(pid)
 	co2.join(pid)
 	m.join(pid)
 
 	_check(not m.kick(pid, "c").ok, "a member cannot kick")
-	_check(host.set_role(pid, "c", DotPartyMember.Role.CO_HOST).ok, "the host makes a co-host")
-	host.set_role(pid, "c2", DotPartyMember.Role.CO_HOST)
+	_check(host.set_role(pid, "c", GSPartyMember.Role.CO_HOST).ok, "the host makes a co-host")
+	host.set_role(pid, "c2", GSPartyMember.Role.CO_HOST)
 	_check(not co.kick(pid, "c2").ok, "a co-host cannot remove another co-host")
 	_check(not co.kick(pid, "h").ok, "nor the host")
 	_check(co.kick(pid, "m", true).ok, "but can ban a member")
 	var back := m.join(pid)
 	_check(not back.ok and back.error.detail == "party.join.deny.banned", "who then cannot come back")
-	_check(not co.set_role(pid, "c2", DotPartyMember.Role.MEMBER).ok, "only the host changes roles")
+	_check(not co.set_role(pid, "c2", GSPartyMember.Role.MEMBER).ok, "only the host changes roles")
 
 	_check(host.transfer_host(pid, "c").ok, "the host hands the party over")
-	var p: DotParty = hub.fetch(pid).value
+	var p: GSParty = hub.fetch(pid).value
 	_check(p.host_id == "c" and p.host().user_id == "c", "and the new host is the host in both places")
-	_check(p.member("h").role == DotPartyMember.Role.CO_HOST, "while the old one keeps the right to manage")
+	_check(p.member("h").role == GSPartyMember.Role.CO_HOST, "while the old one keeps the right to manage")
 
 
 # --- 4 ----------------------------------------------------------------------
@@ -218,7 +218,7 @@ func _test_ready_round() -> void:
 	var b := hub.as_user("b")
 	var c := hub.as_user("c")
 	var d := hub.as_user("d")
-	var pid: String = (a.create({"readyAutoPct": 75, "readyAutoSec": 10}).value as DotParty).id
+	var pid: String = (a.create({"readyAutoPct": 75, "readyAutoSec": 10}).value as GSParty).id
 	b.join(pid)
 	c.join(pid)
 	d.join(pid)
@@ -226,37 +226,37 @@ func _test_ready_round() -> void:
 	_check(not b.start(pid, 7).ok, "only a manager opens the round")
 	var opened := a.start(pid, 7)
 	_check(opened.ok, "the host opens it on a server")
-	var view: DotPartyReady = opened.value
-	_check(view.stage == DotParty.Stage.READY and str(view.connect_info["url"]) == "dot://fc.example:27015", "and everybody is told where to connect")
+	var view: GSPartyReady = opened.value
+	_check(view.stage == GSParty.Stage.READY and str(view.connect_info["url"]) == "dot://fc.example:27015", "and everybody is told where to connect")
 
 	a.set_ready(pid)
 	b.set_ready(pid)
-	_check((a.ready_state(pid).value as DotPartyReady).countdown_sec == -1, "half ready arms nothing under a 75% threshold")
+	_check((a.ready_state(pid).value as GSPartyReady).countdown_sec == -1, "half ready arms nothing under a 75% threshold")
 	c.set_ready(pid)
-	var armed: DotPartyReady = a.ready_state(pid).value
+	var armed: GSPartyReady = a.ready_state(pid).value
 	_check(armed.countdown_sec == 10, "three of four arms the ten-second countdown")
 	_now[0] += 4
 	c.set_ready(pid, false)
-	_check((a.ready_state(pid).value as DotPartyReady).countdown_sec == -1, "and one un-readying disarms it")
+	_check((a.ready_state(pid).value as GSPartyReady).countdown_sec == -1, "and one un-readying disarms it")
 	c.set_ready(pid)
 	_now[0] += 6
 	hub.tick()
-	_check((hub.fetch(pid).value as DotParty).stage == DotParty.Stage.READY, "re-arming starts the count again rather than resuming it")
+	_check((hub.fetch(pid).value as GSParty).stage == GSParty.Stage.READY, "re-arming starts the count again rather than resuming it")
 	_now[0] += 5
 	hub.tick()
-	_check((hub.fetch(pid).value as DotParty).stage == DotParty.Stage.PLAYING, "and when it runs out the round starts")
+	_check((hub.fetch(pid).value as GSParty).stage == GSParty.Stage.PLAYING, "and when it runs out the round starts")
 
 	var hub2 := _hub()
 	hub2.add_server(1, "s", "dot://s")
 	var x := hub2.as_user("x")
 	var y := hub2.as_user("y")
-	var p2: String = (x.create({}).value as DotParty).id
+	var p2: String = (x.create({}).value as GSParty).id
 	y.join(p2)
 	x.start(p2, 1)
 	x.set_ready(p2)
-	_check((hub2.fetch(p2).value as DotParty).stage == DotParty.Stage.READY, "with no threshold, one of two is not enough")
+	_check((hub2.fetch(p2).value as GSParty).stage == GSParty.Stage.READY, "with no threshold, one of two is not enough")
 	y.set_ready(p2)
-	_check((hub2.fetch(p2).value as DotParty).stage == DotParty.Stage.PLAYING, "and everybody ready starts it at once")
+	_check((hub2.fetch(p2).value as GSParty).stage == GSParty.Stage.PLAYING, "and everybody ready starts it at once")
 	_check(not hub2.as_user("z").join(p2).ok, "a stranger cannot join a public party whose game has started")
 
 
@@ -267,24 +267,24 @@ func _test_client() -> void:
 
 	var hub := _hub()
 	hub.add_server(9, "Lobby", "dot://lobby.example:6090")
-	var ada := DotPartyClient.new()
+	var ada := GSPartyClient.new()
 	ada.backend = hub.as_user("ada", "Ada")
 	ada.user_id = "ada"
 	add_child(ada)
 	ada.set_process(false)
 
 	var events: Array = []
-	ada.joined_party.connect(func(p: DotParty) -> void: events.append("joined %s" % p.name))
-	ada.member_joined.connect(func(m: DotPartyMember) -> void: events.append("+%s" % m.display_name))
-	ada.member_left.connect(func(m: DotPartyMember, why: String) -> void: events.append("-%s %s" % [m.display_name, why]))
-	ada.stage_changed.connect(func(_o: DotParty.Stage, n: DotParty.Stage) -> void: events.append("stage %s" % DotParty.STAGE_NAMES[n]))
+	ada.joined_party.connect(func(p: GSParty) -> void: events.append("joined %s" % p.name))
+	ada.member_joined.connect(func(m: GSPartyMember) -> void: events.append("+%s" % m.display_name))
+	ada.member_left.connect(func(m: GSPartyMember, why: String) -> void: events.append("-%s %s" % [m.display_name, why]))
+	ada.stage_changed.connect(func(_o: GSParty.Stage, n: GSParty.Stage) -> void: events.append("stage %s" % GSParty.STAGE_NAMES[n]))
 	ada.left_party.connect(func(_id: String, why: String) -> void: events.append("left %s" % why))
 	var connects: Array = []
 	ada.connect_requested.connect(func(url: String, _i: Dictionary) -> void: connects.append(url))
 	var dialled: Array = []
-	ada.connect_fn = func(url: String, _i: Dictionary) -> DotResult:
+	ada.connect_fn = func(url: String, _i: Dictionary) -> GSResult:
 		dialled.append(url)
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	var made := await ada.create({"name": "Night"})
 	_check(made.ok and ada.party != null, "creating through the client leaves it in the party")
@@ -317,7 +317,7 @@ func _test_client() -> void:
 	_check(connects.size() == 2, "a second round on the same server is followed again")
 
 	# Being kicked yourself.
-	var bo_client := DotPartyClient.new()
+	var bo_client := GSPartyClient.new()
 	bo_client.backend = bo
 	bo_client.user_id = "bo"
 	add_child(bo_client)
@@ -341,7 +341,7 @@ func _test_client() -> void:
 func _test_policy() -> void:
 	_section("Booking terms are the site's, including the window that crosses midnight")
 
-	var pol := DotPartyReservePolicy.new()
+	var pol := GSPartyReservePolicy.new()
 	pol.enabled = true
 	pol.from_minute = 22 * 60
 	pol.to_minute = 2 * 60
@@ -364,20 +364,20 @@ func _test_policy() -> void:
 	_check(not late.ok and late.error.detail == "party.reserve.deny.window", "three minutes is refused rather than granted")
 	_check(not pol.grant(fri_2300, 60, true, pol.offer(fri_2300, "1", 0)).ok, "a private booking on a public-only server is refused, not coerced")
 
-	var open := DotPartyReservePolicy.new()
+	var open := GSPartyReservePolicy.new()
 	open.enabled = true
 	var t := _utc(2026, 9, 23, 12, 0)
-	_check(str(DotPartyReservePolicy.new().offer(t, "1", 0)["deny"]) == "off", "a server that has not opted in is off")
+	_check(str(GSPartyReservePolicy.new().offer(t, "1", 0)["deny"]) == "off", "a server that has not opted in is off")
 	_check(str(open.offer(t, "1", 3)["deny"]) == "populated", "an empty-only server with people on it is populated")
-	var held := DotPartyReservation.new()
+	var held := GSPartyReservation.new()
 	held.party_id = "2"
-	held.status = DotPartyReservation.Status.ACTIVE
+	held.status = GSPartyReservation.Status.ACTIVE
 	held.ends_at = t + 600
 	_check(str(open.offer(t, "1", 0, held)["deny"]) == "taken", "a server another party holds is taken")
 	_check(str(open.offer(t, "2", 0, held)["deny"]) == "already", "and one this party holds is already")
-	var last := DotPartyReservation.new()
+	var last := GSPartyReservation.new()
 	last.party_id = "1"
-	last.status = DotPartyReservation.Status.ENDED
+	last.status = GSPartyReservation.Status.ENDED
 	last.ends_at = t - 60
 	var cool := open.offer(t, "1", 0, null, last)
 	_check(str(cool["deny"]) == "cooldown" and int(cool["freeAt"]) == t - 60 + 15 * 60, "booking again straight after is a cooldown, with when it lifts")
@@ -391,10 +391,10 @@ class BanList:
 	extends RefCounted
 	var banned: Dictionary = {}
 
-	func check_admission(uid: String, _address: String) -> DotResult:
+	func check_admission(uid: String, _address: String) -> GSResult:
 		if banned.has(uid):
-			return DotResult.fail(DotError.CODE_FORBIDDEN, "banned")
-		return DotResult.success(true)
+			return GSResult.fail(GSError.CODE_FORBIDDEN, "banned")
+		return GSResult.success(true)
 
 
 func _test_reservations() -> void:
@@ -402,21 +402,21 @@ func _test_reservations() -> void:
 
 	var bans := BanList.new()
 	bans.banned["backbone:villain"] = true
-	DotRegistry.register(&"dot_ban_source", bans)
+	GSRegistry.register(&"dot_ban_source", bans)
 
 	var seats: Array[Vector2i] = [Vector2i(0, 10)]
-	var gate := DotPartyReservations.new()
+	var gate := GSPartyReservations.new()
 	gate.now_fn = func() -> int: return _now[0]
 	gate.seats_fn = func() -> Vector2i: return seats[0]
 	gate.bypass_fn = func(uid: String) -> bool: return uid == "backbone:owner"
-	var pol := DotPartyReservePolicy.new()
+	var pol := GSPartyReservePolicy.new()
 	pol.enabled = true
-	pol.lobbies = DotPartyReservePolicy.Lobbies.PUBLIC_AND_PRIVATE
+	pol.lobbies = GSPartyReservePolicy.Lobbies.PUBLIC_AND_PRIVATE
 	gate.policy = pol
 	add_child(gate)
 	gate.set_process(false)
 
-	_check(DotRegistry.get_service(&"dot_ban_source") == gate, "it takes the admission seam")
+	_check(GSRegistry.get_service(&"dot_ban_source") == gate, "it takes the admission seam")
 	_check(gate.previous_source == bans, "and keeps the ban list that held it")
 	_check(not gate.check_admission("backbone:villain", "1.2.3.4").ok, "so a banned player is still refused with no booking in force")
 
@@ -449,8 +449,8 @@ func _test_reservations() -> void:
 
 	var ended: Array = []
 	var warned: Array = []
-	gate.reservation_ended.connect(func(_r: DotPartyReservation, why: String) -> void: ended.append(why))
-	gate.reservation_ending.connect(func(_r: DotPartyReservation, left: int) -> void: warned.append(left))
+	gate.reservation_ended.connect(func(_r: GSPartyReservation, why: String) -> void: ended.append(why))
+	gate.reservation_ending.connect(func(_r: GSPartyReservation, left: int) -> void: warned.append(left))
 	gate.note_departure("backbone:a")
 	gate.note_departure("backbone:b")
 	_now[0] += int(gate.config.release_when_empty_sec) + 1
@@ -470,12 +470,12 @@ func _test_reservations() -> void:
 
 	# A website booking, through a hub standing in for the backbone.
 	var hub := _hub()
-	var hub_pol := DotPartyReservePolicy.new()
+	var hub_pol := GSPartyReservePolicy.new()
 	hub_pol.enabled = true
-	hub_pol.lobbies = DotPartyReservePolicy.Lobbies.PRIVATE_ONLY
+	hub_pol.lobbies = GSPartyReservePolicy.Lobbies.PRIVATE_ONLY
 	hub.add_server(42, "Scrim", "dot://scrim", hub_pol)
 	var lead := hub.as_user("lead")
-	var sp: DotParty = lead.create({}).value
+	var sp: GSParty = lead.create({}).value
 	hub.as_user("mate").join(sp.id)
 	var r := lead.reserve(sp.id, 42, 60, true)
 	_check(r.ok, "a party books a server through its backend")
@@ -486,21 +486,21 @@ func _test_reservations() -> void:
 	_check(not gate.check_admission("backbone:zed", "").ok, "and keeps the stranger out")
 
 	# An outage must not open a private server.
-	gate.fetch_fn = func() -> DotResult: return DotResult.fail(DotError.CODE_NETWORK, "down")
+	gate.fetch_fn = func() -> GSResult: return GSResult.fail(GSError.CODE_NETWORK, "down")
 	await gate.sync()
 	_check(gate.current != null, "a backbone that cannot be reached leaves the booking in force")
 
-	var parsed := DotPartyReservations.parse_backbone({"ok": true, "reservation": {
+	var parsed := GSPartyReservations.parse_backbone({"ok": true, "reservation": {
 		"id": "88", "partyId": "4471", "serverId": 4821, "status": "ACTIVE", "private": true,
 		"startsAt": "2026-09-23T20:00:00.000Z", "endsAt": "2026-09-23T22:00:00.000Z",
 	}, "party": {"id": "4471"}, "members": [{"userId": "clx1", "role": "HOST"}]})
-	_check(parsed.ok and ((parsed.value as Dictionary)["party"] as DotParty).has_member("clx1"), "the proposed backbone answer parses")
-	_check((DotPartyReservations.parse_backbone({"ok": true, "reservation": null}).value) == null, "and 'not booked' is null, not an error")
+	_check(parsed.ok and ((parsed.value as Dictionary)["party"] as GSParty).has_member("clx1"), "the proposed backbone answer parses")
+	_check((GSPartyReservations.parse_backbone({"ok": true, "reservation": null}).value) == null, "and 'not booked' is null, not an error")
 
 	gate.queue_free()
 	await get_tree().process_frame
-	_check(DotRegistry.get_service(&"dot_ban_source") == bans, "removing it hands the seam back to the ban list")
-	DotRegistry.unregister_instance(&"dot_ban_source", bans)
+	_check(GSRegistry.get_service(&"dot_ban_source") == bans, "removing it hands the seam back to the ban list")
+	GSRegistry.unregister_instance(&"dot_ban_source", bans)
 
 
 # --- 8 ----------------------------------------------------------------------
@@ -509,14 +509,14 @@ class FakeAuthClient:
 	extends RefCounted
 	var calls: Array = []
 
-	func get_app(path: String, query: Dictionary = {}) -> DotResult:
+	func get_app(path: String, query: Dictionary = {}) -> GSResult:
 		calls.append(["GET", path, query])
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	func post_app(path: String, body: Dictionary) -> DotResult:
+	func post_app(path: String, body: Dictionary) -> GSResult:
 		calls.append(["POST", path, body])
 		# What dot-auth hands back for a refusal: the site's code already in the detail.
-		return DotResult.failure(DotError.make(DotError.CODE_CONFLICT, "This party is full.", "party.join.deny.full"))
+		return GSResult.failure(GSError.make(GSError.CODE_CONFLICT, "This party is full.", "party.join.deny.full"))
 
 
 class FakeIntegration:
@@ -525,21 +525,21 @@ class FakeIntegration:
 	var parties: Dictionary = {}
 	var status: int = 200
 
-	func post_integration(path: String, body: Dictionary) -> DotResult:
+	func post_integration(path: String, body: Dictionary) -> GSResult:
 		calls.append([path, body])
 		if status != 200:
-			return DotResult.failure(DotError.from_http(status, "{\"error\":\"nope\"}"))
+			return GSResult.failure(GSError.from_http(status, "{\"error\":\"nope\"}"))
 		if path == "party/create":
 			parties["900"] = {"party": {"id": "900", "name": body["name"]}, "members": []}
-			return DotResult.success({"ok": true, "partyId": "900", "url": "/parties/900"})
-		return DotResult.success({"ok": true})
+			return GSResult.success({"ok": true, "partyId": "900", "url": "/parties/900"})
+		return GSResult.success({"ok": true})
 
-	func get_integration(path: String, _query: Dictionary = {}) -> DotResult:
+	func get_integration(path: String, _query: Dictionary = {}) -> GSResult:
 		calls.append([path, {}])
 		var id := path.get_slice("/", 1)
 		if not parties.has(id):
-			return DotResult.failure(DotError.from_http(404, "{\"error\":\"Party not found.\"}"))
-		return DotResult.success(parties[id])
+			return GSResult.failure(GSError.from_http(404, "{\"error\":\"Party not found.\"}"))
+		return GSResult.success(parties[id])
 
 
 func _test_server_reporting() -> void:
@@ -547,7 +547,7 @@ func _test_server_reporting() -> void:
 
 	var fake := FakeIntegration.new()
 	fake.parties["4471"] = JSON.parse_string(SITE_PARTY)
-	var srv := DotPartyServer.new()
+	var srv := GSPartyServer.new()
 	srv.client = fake
 	var here: Array = [
 		{"name": "Ashley", "uid": "backbone:clx1", "score": 5},
@@ -560,7 +560,7 @@ func _test_server_reporting() -> void:
 	var claimed := await srv.claim("backbone:clx1", "4471")
 	_check(claimed.ok and srv.parties.has("4471"), "a member's claim is checked against the roster and the party tracked")
 	var lie := await srv.claim("backbone:mallory", "4471")
-	_check(not lie.ok and lie.error.code == DotError.CODE_FORBIDDEN, "a claim to a party somebody is not in is refused")
+	_check(not lie.ok and lie.error.code == GSError.CODE_FORBIDDEN, "a claim to a party somebody is not in is refused")
 	_check(srv.party_of("backbone:clx1") == "4471" and srv.party_of("guest:77") == "", "the server knows who is in which party")
 
 	fake.calls.clear()
@@ -603,30 +603,30 @@ func _test_app_backend() -> void:
 
 	var sent: Array = []
 	var answers: Array = []
-	var app := DotPartyBackendApp.new("https://tmc.example/api/app/v1")
-	app.request_fn = func(method: String, path: String, body: Dictionary) -> DotResult:
+	var app := GSPartyBackendApp.new("https://tmc.example/api/app/v1")
+	app.request_fn = func(method: String, path: String, body: Dictionary) -> GSResult:
 		sent.append([method, path, body])
 		return answers.pop_front()
 
-	answers.append(DotResult.success({"ok": true, "data": null}))
+	answers.append(GSResult.success({"ok": true, "data": null}))
 	var none := await app.mine()
 	_check(none.ok and none.value == null, "not being in a party is a success with nothing in it")
 
-	answers.append(DotResult.success({"ok": true, "data": JSON.parse_string(SITE_PARTY)}))
+	answers.append(GSResult.success({"ok": true, "data": JSON.parse_string(SITE_PARTY)}))
 	var mine := await app.mine()
-	_check(mine.ok and (mine.value as DotParty).id == "4471", "a party comes back as a party")
+	_check(mine.ok and (mine.value as GSParty).id == "4471", "a party comes back as a party")
 
-	answers.append(DotResult.success({"ok": false, "code": "party.join.deny.full", "message": "That party is full."}))
+	answers.append(GSResult.success({"ok": false, "code": "party.join.deny.full", "message": "That party is full."}))
 	var full := await app.join("4471")
 	_check(not full.ok and full.error.detail == "party.join.deny.full", "a refusal carries the site's key where every backend puts it")
 	_check(sent[2][1] == "party/join" and sent[2][2]["id"] == "4471", "and the request uses the site's own field names")
 
-	var err := DotError.from_http(429, "{\"ok\":false,\"code\":\"rate_limited\",\"message\":\"Slow down.\",\"retryAfter\":12}")
-	answers.append(DotResult.failure(err))
+	var err := GSError.from_http(429, "{\"ok\":false,\"code\":\"rate_limited\",\"message\":\"Slow down.\",\"retryAfter\":12}")
+	answers.append(GSResult.failure(err))
 	var slow := await app.set_ready("4471")
-	_check(not slow.ok and slow.error.retry_after == 12.0 and slow.error.code == DotError.CODE_RATE_LIMITED, "a 429 keeps its retry-after")
+	_check(not slow.ok and slow.error.retry_after == 12.0 and slow.error.code == GSError.CODE_RATE_LIMITED, "a 429 keeps its retry-after")
 
-	answers.append(DotResult.failure(DotError.from_http(404, "")))
+	answers.append(GSResult.failure(GSError.from_http(404, "")))
 	var missing := await app.heartbeat("4471")
 	_check(not missing.ok and missing.error.message.contains("no app party routes yet"), "a 404 says the site has not grown the routes yet")
 	_check(missing.error.detail == "", "and leaves the refusal-key field empty, since there is no key to render")
@@ -634,7 +634,7 @@ func _test_app_backend() -> void:
 	# HOST is not a role the site sets (`party/role` takes CO_HOST or MEMBER), and the local
 	# hub already refused it; the app backend sent it and got a bare 400.
 	var before := sent.size()
-	var promoted := await app.set_role("4471", "u2", DotPartyMember.Role.HOST)
+	var promoted := await app.set_role("4471", "u2", GSPartyMember.Role.HOST)
 	_check(
 		not promoted.ok and promoted.error.detail == "party.role.deny.host" and sent.size() == before,
 		"making somebody HOST is refused before any request, as the local hub refuses it"
@@ -642,14 +642,14 @@ func _test_app_backend() -> void:
 
 	# A nameless player is left out of what the server reports, rather than refusing it all.
 	_check(
-		DotPartyServer._wire_player({"name": "  ", "steamId": "7656"}).is_empty()
-			and DotPartyServer._wire_player({"name": "Ada"}) == {"name": "Ada"},
+		GSPartyServer._wire_player({"name": "  ", "steamId": "7656"}).is_empty()
+			and GSPartyServer._wire_player({"name": "Ada"}) == {"name": "Ada"},
 		"a player with no name is left out of a report, since the site refuses a whole report for one"
 	)
 
 	_check(not (await app.fetch("x1")).ok, "a malformed id is refused before a request is made")
 
-	var via_auth := DotPartyBackendApp.new()
+	var via_auth := GSPartyBackendApp.new()
 	var auth := FakeAuthClient.new()
 	via_auth.client = auth
 	var offer := await via_auth.reservation_offer("4471", 12)
@@ -664,16 +664,16 @@ func _test_app_backend() -> void:
 		{"userId": "u1", "role": "HOST", "state": "JOINED"},
 	]}
 	var ready_view := {"total": 1, "ready": 1, "connect": {"serverId": 12, "serverName": "Lobby", "url": "dot://lobby.example:6090"}}
-	var site := DotPartyBackendApp.new("https://tmc.example/api/app/v1")
+	var site := GSPartyBackendApp.new("https://tmc.example/api/app/v1")
 	var asked: Array = []
-	site.request_fn = func(method: String, path: String, _body: Dictionary) -> DotResult:
+	site.request_fn = func(method: String, path: String, _body: Dictionary) -> GSResult:
 		asked.append("%s %s" % [method, path])
 		if path == "party/mine":
-			return DotResult.success({"ok": true, "data": ready_party.duplicate(true)})
+			return GSResult.success({"ok": true, "data": ready_party.duplicate(true)})
 		if path == "party/4471/ready":
-			return DotResult.success({"ok": true, "data": ready_view})
-		return DotResult.success({"ok": true, "data": null})
-	var follower := DotPartyClient.new()
+			return GSResult.success({"ok": true, "data": ready_view})
+		return GSResult.success({"ok": true, "data": null})
+	var follower := GSPartyClient.new()
 	follower.backend = site
 	follower.user_id = "u1"
 	follower.follow = false
@@ -689,18 +689,18 @@ func _test_app_backend() -> void:
 
 # --- helpers ------------------------------------------------------------------
 
-func _hub() -> DotPartyLocalHub:
-	var hub := DotPartyLocalHub.new()
+func _hub() -> GSPartyLocalHub:
+	var hub := GSPartyLocalHub.new()
 	hub.now_fn = func() -> int: return _now[0]
 	return hub
 
 
-func _party(id_seed: String, users: Array) -> DotParty:
+func _party(id_seed: String, users: Array) -> GSParty:
 	var rows := []
 	for u in users:
 		rows.append({"userId": str(u), "displayName": str(u)})
 	var n := 100 + id_seed.hash() % 900
-	return DotParty.from_dict({"id": str(absi(n)), "members": rows}).value
+	return GSParty.from_dict({"id": str(absi(n)), "members": rows}).value
 
 
 func _utc(y: int, mo: int, d: int, h: int, mi: int) -> int:

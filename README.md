@@ -14,24 +14,24 @@ A game holds one backend and does not need to know which.
 
 | Backend | What it talks to |
 | --- | --- |
-| `DotPartyBackendApp` | The website, as the signed-in player. |
-| `DotPartyBackendLocal` | The website's rules run inside your process, for a LAN, an offline build and tests. |
+| `GSPartyBackendApp` | The website, as the signed-in player. |
+| `GSPartyBackendLocal` | The website's rules run inside your process, for a LAN, an offline build and tests. |
 
-A refusal carries the website's own reason key (such as `party.join.deny.full` or `party.reserve.deny.window`) in `DotError.detail`, from either backend. The website translates those keys into nine languages, and [GameSpice Locale](https://github.com/gamespice-platform/locale) can show them in the player's.
+A refusal carries the website's own reason key (such as `party.join.deny.full` or `party.reserve.deny.window`) in `GSError.detail`, from either backend. The website translates those keys into nine languages, and [GameSpice Locale](https://github.com/gamespice-platform/locale) can show them in the player's.
 
 ## Joining a server together
 
 The party's ready round is how it moves. The host picks a server, everybody is told where to connect, and the round starts when everyone is ready, or, if the party set a threshold, when that share is ready and a countdown runs out.
 
-`DotPartyClient` polls the party (fast during a ready round, slower otherwise), sends a heartbeat so the website does not drop the player, and turns each new snapshot into events: someone joined, someone was kicked, the stage changed. When a ready round opens it asks your game to connect once, reports that the player arrived, and does it again the next time the party moves.
+`GSPartyClient` polls the party (fast during a ready round, slower otherwise), sends a heartbeat so the website does not drop the player, and turns each new snapshot into events: someone joined, someone was kicked, the stage changed. When a ready round opens it asks your game to connect once, reports that the player arrived, and does it again the next time the party moves.
 
 ```gdscript
-var party := DotPartyClient.new()
-var app := DotPartyBackendApp.new()
-app.client = auth          # dot-auth's DotAuthClient: it holds the token and refreshes it
+var party := GSPartyClient.new()
+var app := GSPartyBackendApp.new()
+app.client = auth          # dot-auth's GSAuthClient: it holds the token and refreshes it
 party.backend = app
 party.user_id = auth.identity().uid.trim_prefix("backbone:")
-party.connect_fn = func(url: String, _info: Dictionary) -> DotResult:
+party.connect_fn = func(url: String, _info: Dictionary) -> GSResult:
     return await game.connect_to(url)
 add_child(party)
 
@@ -41,7 +41,7 @@ party.left_party.connect(func(_id, why): if why == "kicked": hud.toast("You were
 
 ## Booking a server
 
-A party can book a server for a while if the server's owner allows it. `DotPartyReservations` is the game server's half. It learns the booking (from the website, a local hub or the owner at the console) and answers the admission question GameSpice Server already asks on every join.
+A party can book a server for a while if the server's owner allows it. `GSPartyReservations` is the game server's half. It learns the booking (from the website, a local hub or the owner at the console) and answers the admission question GameSpice Server already asks on every join.
 
 | Booking | What the server does |
 | --- | --- |
@@ -50,7 +50,7 @@ A party can book a server for a while if the server's owner allows it. `DotParty
 
 It chains onto whatever ban list is already installed, so a banned player is still banned on a booked server. If the website cannot be reached the booking stays in force, because an outage must not open a private server.
 
-The owner's booking terms are `DotPartyReservePolicy`, using the same rules as the website:
+The owner's booking terms are `GSPartyReservePolicy`, using the same rules as the website:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ The owner's booking terms are `DotPartyReservePolicy`, using the same rules as t
 
 ## Tracking a party on a game server
 
-`DotPartyServer` tells the website who from which party is on the server, so play time, rounds and scores are recorded. It sends a full roster report every `state_report_sec` seconds, exact join and leave events, and round results with places.
+`GSPartyServer` tells the website who from which party is on the server, so play time, rounds and scores are recorded. It sends a full roster report every `state_report_sec` seconds, exact join and leave events, and round results with places.
 
 A joining client names its party. The server fetches that party's roster and checks the player is on it before tracking anything, so claiming a party you are not in does nothing.
 
@@ -73,7 +73,7 @@ A joining client names its party. The server fetches that party's roster and che
 
 ## Settings
 
-`DotPartyConfig` is layered like every GameSpice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
+`GSPartyConfig` is layered like every GameSpice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ A joining client names its party. The server fetches that party's roster and che
 
 ## The website routes
 
-The server half uses the website's integration routes under `/api/integration/v1/party/`, and the player half uses `/api/app/v1/party/`. [docs/backbone-contract.md](docs/backbone-contract.md) lists every route. A website without them makes `DotPartyBackendApp` fail each call with a message that says so, and `DotPartyBackendLocal` gives a game the same behaviour offline.
+The server half uses the website's integration routes under `/api/integration/v1/party/`, and the player half uses `/api/app/v1/party/`. [docs/backbone-contract.md](docs/backbone-contract.md) lists every route. A website without them makes `GSPartyBackendApp` fail each call with a message that says so, and `GSPartyBackendLocal` gives a game the same behaviour offline.
 
 ## More
 

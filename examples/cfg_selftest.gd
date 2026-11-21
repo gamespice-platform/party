@@ -16,7 +16,7 @@ var _sections := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -25,32 +25,32 @@ func _run() -> void:
 	var addon_dir := "user://cfg/addons/" + FOLDER
 	var server_dir := "user://cfg/server/addons/" + FOLDER
 	_clean(addon_dir, server_dir)
-	DotCfgLegacy.reset()
+	GSCfgLegacy.reset()
 
 	_write(LEGACY.path_join(FILE), "party_seat_hold_sec: 60.0\n")
-	var config := DotPartyConfig.new()
+	var config := GSPartyConfig.new()
 	var res := config.load_cfg(FILE, LEGACY)
 	_check(res.ok and config.seat_hold_sec == 60.0, "only the flat file: it is still read")
-	_check(DotCfgLegacy.warned_count() == 1, "and warned once")
-	DotPartyConfig.new().load_cfg(FILE, LEGACY)
-	_check(DotCfgLegacy.warned_count() == 1, "a second load does not warn again")
+	_check(GSCfgLegacy.warned_count() == 1, "and warned once")
+	GSPartyConfig.new().load_cfg(FILE, LEGACY)
+	_check(GSCfgLegacy.warned_count() == 1, "a second load does not warn again")
 
 	_write(addon_dir.path_join(FILE), "party_seat_hold_sec: 120.0\nsome_deployment_key: 1\n")
-	config = DotPartyConfig.new()
+	config = GSPartyConfig.new()
 	res = config.load_cfg(FILE, LEGACY)
 	_check(res.ok and config.seat_hold_sec == 120.0, "the new path wins over the flat file")
 	_check(config.unknown_keys.is_empty(), "and a key of the deployment's is skipped, not reported")
 
 	_write(server_dir.path_join(FILE), "party_seat_hold_sec: 150.0\n")
-	config = DotPartyConfig.new()
+	config = GSPartyConfig.new()
 	res = config.load_cfg(FILE, LEGACY)
 	_check(res.ok and config.seat_hold_sec == 150.0, "the operator's server layer wins")
 
 	_write(server_dir.path_join(FILE), "party_seat_hold_sec: [broken\n")
-	_check(not DotPartyConfig.new().load_cfg(FILE, LEGACY).ok, "a bad file fails")
+	_check(not GSPartyConfig.new().load_cfg(FILE, LEGACY).ok, "a bad file fails")
 
 	_clean(addon_dir, server_dir)
-	DotCfgLegacy.reset()
+	GSCfgLegacy.reset()
 	_sections += 1
 	print("%d sections, %d passed, %d failed" % [_sections, _passed, _failed])
 	if _sections != SECTIONS or _passed + _failed != CHECKS:
@@ -61,9 +61,9 @@ func _run() -> void:
 
 
 func _clean(addon_dir: String, server_dir: String) -> void:
-	DotPaths.remove_tree(addon_dir)
-	DotPaths.remove_tree(server_dir)
-	DotPaths.remove_tree(LEGACY)
+	GSPaths.remove_tree(addon_dir)
+	GSPaths.remove_tree(server_dir)
+	GSPaths.remove_tree(LEGACY)
 
 
 func _write(path: String, text: String) -> void:

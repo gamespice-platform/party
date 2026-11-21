@@ -1,4 +1,4 @@
-class_name DotPartyServer
+class_name GSPartyServer
 extends Node
 
 ## The game server's side of the backbone's party tracking: who from which party is here,
@@ -12,7 +12,7 @@ extends Node
 ## [code]PARTY_STATS[/code] and [code]PARTY_WRITE[/code]. See the site's
 ## [code]docs/api/integration-api.md[/code].
 ##
-## [b]The state report is absolute.[/b] Every [member DotPartyConfig.state_report_sec] the
+## [b]The state report is absolute.[/b] Every [member GSPartyConfig.state_report_sec] the
 ## whole player list goes to every party being tracked, not the changes since last time —
 ## the site's rule, because a lost delta is a wrong roster forever and a lost snapshot is
 ## corrected by the next one. [method player_joined] and [method player_left] add exact
@@ -31,11 +31,11 @@ extends Node
 const CHANNEL := "party.server"
 const SERVICE := &"dot_party_server"
 
-signal party_tracked(party: DotParty)
+signal party_tracked(party: GSParty)
 signal party_untracked(party_id: String)
-signal report_failed(what: String, error: DotError)
+signal report_failed(what: String, error: GSError)
 
-@export var config: DotPartyConfig = null
+@export var config: GSPartyConfig = null
 
 var client: Object = null
 
@@ -44,7 +44,7 @@ var client: Object = null
 ## is the session's, and never leaves the server; the site matches by name.
 var players_fn: Callable = Callable()
 
-## party id -> DotParty
+## party id -> GSParty
 var parties: Dictionary = {}
 
 var _since_state: float = 0.0
@@ -55,13 +55,13 @@ var failures: int = 0
 
 func _ready() -> void:
 	if config == null:
-		config = DotPartyConfig.new()
+		config = GSPartyConfig.new()
 	if not Engine.is_editor_hint():
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 
 
 func _exit_tree() -> void:
-	DotRegistry.unregister_instance(SERVICE, self)
+	GSRegistry.unregister_instance(SERVICE, self)
 
 
 func _process(delta: float) -> void:
@@ -82,10 +82,10 @@ func _process(delta: float) -> void:
 
 ## A connected player says they are in [param party_id]. Tracks the party if its roster
 ## agrees; refuses, and tracks nothing, if it does not.
-func claim(uid: String, party_id: String) -> DotResult:
-	if not DotParty.is_id(party_id):
-		return DotResult.fail(DotError.CODE_INVALID, "That is not a party id.", party_id)
-	var p: DotParty = parties.get(party_id)
+func claim(uid: String, party_id: String) -> GSResult:
+	if not GSParty.is_id(party_id):
+		return GSResult.fail(GSError.CODE_INVALID, "That is not a party id.", party_id)
+	var p: GSParty = parties.get(party_id)
 	if p == null or not p.server_uids().has(uid):
 		var fetched := await refresh(party_id)
 		if not fetched.ok:
@@ -94,16 +94,16 @@ func claim(uid: String, party_id: String) -> DotResult:
 	if not p.server_uids().has(uid):
 		if p.size() == 0 or not _any_here(p):
 			untrack(party_id)
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "You are not in that party.", party_id)
-	return DotResult.success(p)
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "You are not in that party.", party_id)
+	return GSResult.success(p)
 
 
 ## Starts tracking [param p] as it is, with no fetch. For a party a booking brought.
-func track(p: DotParty) -> void:
+func track(p: GSParty) -> void:
 	var fresh := not parties.has(p.id)
 	parties[p.id] = p
 	if fresh:
-		DotLog.info(CHANNEL, "tracking a party", {"party": p.id, "members": p.size()})
+		GSLog.info(CHANNEL, "tracking a party", {"party": p.id, "members": p.size()})
 		party_tracked.emit(p)
 
 
@@ -113,25 +113,25 @@ func untrack(party_id: String) -> void:
 
 
 ## Re-reads one party's roster. An ended party is untracked.
-func refresh(party_id: String) -> DotResult:
+func refresh(party_id: String) -> GSResult:
 	var res := await _get_json("party/%s" % party_id)
 	if not res.ok:
 		return res
-	var parsed := DotParty.from_dict(res.value as Dictionary)
+	var parsed := GSParty.from_dict(res.value as Dictionary)
 	if not parsed.ok:
 		return parsed
-	var p: DotParty = parsed.value
+	var p: GSParty = parsed.value
 	if not p.is_live():
 		untrack(party_id)
-		return DotResult.fail(DotError.CODE_STATE, "That party has ended.", party_id)
+		return GSResult.fail(GSError.CODE_STATE, "That party has ended.", party_id)
 	track(p)
-	return DotResult.success(p)
+	return GSResult.success(p)
 
 
 ## The party [param uid] is in among those tracked, or "".
 func party_of(uid: String) -> String:
 	for id in parties:
-		if (parties[id] as DotParty).server_uids().has(uid):
+		if (parties[id] as GSParty).server_uids().has(uid):
 			return str(id)
 	return ""
 
@@ -164,9 +164,9 @@ func groups(uids: PackedStringArray) -> Array:
 # --- Reporting -----------------------------------------------------------------
 
 ## The whole picture, to every tracked party. [code]party/state[/code].
-func report_state(map_name: String = "", game_mode: String = "") -> DotResult:
+func report_state(map_name: String = "", game_mode: String = "") -> GSResult:
 	var players := _players()
-	var last := DotResult.success(0)
+	var last := GSResult.success(0)
 	for id in parties.keys():
 		var body := {"partyId": str(id), "players": players}
 		if map_name != "":
@@ -191,31 +191,31 @@ func player_left(player: Dictionary) -> void:
 
 
 ## A round began. [code]party/match[/code] with [code]event: start[/code].
-func match_started(map_name: String = "", game_mode: String = "") -> DotResult:
+func match_started(map_name: String = "", game_mode: String = "") -> GSResult:
 	return await _match("start", map_name, game_mode, _players())
 
 
 ## A round finished. [param results] is the player list with a [code]place[/code] on each.
-func match_ended(results: Array, map_name: String = "", game_mode: String = "") -> DotResult:
+func match_ended(results: Array, map_name: String = "", game_mode: String = "") -> GSResult:
 	return await _match("end", map_name, game_mode, results)
 
 
 ## Creates a party as this server — "everybody here, as a party" — and tracks it.
 ## [code]type[/code] is PUBLIC or FRIENDS only: a machine-made password party would have a
 ## password only the machine knows.
-func create_party(party_name: String, max_users: int = 8, type: String = "PUBLIC") -> DotResult:
+func create_party(party_name: String, max_users: int = 8, type: String = "PUBLIC") -> GSResult:
 	if type != "PUBLIC" and type != "FRIENDS":
-		return DotResult.fail(DotError.CODE_INVALID, "A server may only create PUBLIC or FRIENDS parties.", type)
+		return GSResult.fail(GSError.CODE_INVALID, "A server may only create PUBLIC or FRIENDS parties.", type)
 	var res := await _post("party/create", {"name": party_name, "maxUsers": clampi(max_users, 2, 256), "type": type})
 	if not res.ok:
 		return res
 	var id := str((res.value as Dictionary).get("partyId", ""))
 	var fetched := await refresh(id)
-	return fetched if fetched.ok else DotResult.success({"partyId": id})
+	return fetched if fetched.ok else GSResult.success({"partyId": id})
 
 
 ## Ends a party this server created. Recorded by the site as ended by the SERVER, not the host.
-func end_party(party_id: String) -> DotResult:
+func end_party(party_id: String) -> GSResult:
 	var res := await _post("party/end", {"partyId": party_id})
 	if res.ok:
 		untrack(party_id)
@@ -226,7 +226,7 @@ func describe_lines() -> PackedStringArray:
 	var out := PackedStringArray()
 	out.append("party tracking: %d parties, %d reports, %d failures" % [parties.size(), reports, failures])
 	for id in parties:
-		out.append_array((parties[id] as DotParty).describe_lines())
+		out.append_array((parties[id] as GSParty).describe_lines())
 	return out
 
 
@@ -248,7 +248,7 @@ func _session(event: String, player: Dictionary) -> void:
 		await _post("party/session", {"partyId": id, "event": event, "player": row})
 
 
-func _match(event: String, map_name: String, game_mode: String, rows: Array) -> DotResult:
+func _match(event: String, map_name: String, game_mode: String, rows: Array) -> GSResult:
 	var players := []
 	for r in rows:
 		var d: Dictionary = r
@@ -258,7 +258,7 @@ func _match(event: String, map_name: String, game_mode: String, rows: Array) -> 
 		if d.has("place"):
 			w["place"] = int(d["place"])
 		players.append(w)
-	var last := DotResult.success(null)
+	var last := GSResult.success(null)
 	for id in parties.keys():
 		var body := {"partyId": str(id), "event": event, "players": players}
 		if map_name != "":
@@ -308,7 +308,7 @@ static func _wire_player(p: Dictionary) -> Dictionary:
 	return out
 
 
-func _any_here(p: DotParty) -> bool:
+func _any_here(p: GSParty) -> bool:
 	if not players_fn.is_valid():
 		return false
 	var raw: Variant = players_fn.call()
@@ -321,10 +321,10 @@ func _any_here(p: DotParty) -> bool:
 	return false
 
 
-func _post(path: String, body: Dictionary) -> DotResult:
+func _post(path: String, body: Dictionary) -> GSResult:
 	if client == null or not client.has_method("post_integration"):
-		return DotResult.fail(DotError.CODE_STATE, "no backbone client")
-	var res: DotResult = await client.call("post_integration", path, body)
+		return GSResult.fail(GSError.CODE_STATE, "no backbone client")
+	var res: GSResult = await client.call("post_integration", path, body)
 	if res.ok:
 		reports += 1
 	else:
@@ -335,7 +335,7 @@ func _post(path: String, body: Dictionary) -> DotResult:
 	return res
 
 
-func _get_json(path: String) -> DotResult:
+func _get_json(path: String) -> GSResult:
 	if client == null or not client.has_method("get_integration"):
-		return DotResult.fail(DotError.CODE_STATE, "no backbone client")
+		return GSResult.fail(GSError.CODE_STATE, "no backbone client")
 	return await client.call("get_integration", path, {})

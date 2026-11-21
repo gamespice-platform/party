@@ -1,4 +1,4 @@
-class_name DotPartyReservations
+class_name GSPartyReservations
 extends Node
 
 ## A game server keeping the promise the website made when a party booked it.
@@ -18,7 +18,7 @@ extends Node
 ##
 ## [b]Two shapes, as on the site.[/b] A private booking admits the party and nobody else.
 ## A public one leaves the server open but [i]holds seats[/i] for members who have not
-## arrived yet, for [member DotPartyConfig.seat_hold_sec] — the join-together window.
+## arrived yet, for [member GSPartyConfig.seat_hold_sec] — the join-together window.
 ## Without that, eight friends who booked a server lose it to whoever connects in the
 ## thirty seconds it takes them all to load a map, which is the exact failure the site's
 ## own reservation rules say the feature exists to prevent.
@@ -38,16 +38,16 @@ const SERVICE := &"dot_party_reservations"
 ## The seam GameSpice Server asks. GameSpice Moderation and GameSpice Server Security publish the same name.
 const BAN_SOURCE := &"dot_ban_source"
 
-signal reservation_started(reservation: DotPartyReservation, party: DotParty)
-signal reservation_ending(reservation: DotPartyReservation, seconds_left: int)
+signal reservation_started(reservation: GSPartyReservation, party: GSParty)
+signal reservation_ending(reservation: GSPartyReservation, seconds_left: int)
 ## [param reason]: "expired", "released", "empty", "cancelled".
-signal reservation_ended(reservation: DotPartyReservation, reason: String)
+signal reservation_ended(reservation: GSPartyReservation, reason: String)
 signal admission_refused(uid: String, reason: String)
 
-@export var config: DotPartyConfig = null
+@export var config: GSPartyConfig = null
 
 ## This server's terms, for bookings made here rather than on the website.
-@export var policy: DotPartyReservePolicy = null
+@export var policy: GSPartyReservePolicy = null
 
 ## Also consult whatever held [code]dot_ban_source[/code] before this node. Off replaces the
 ## ban list's enforcement rather than adding to it, which is almost never what anybody wants.
@@ -65,7 +65,7 @@ var seats_fn: Callable = Callable()
 ## party is a support ticket.
 var bypass_fn: Callable = Callable()
 
-## [code]func() -> DotResult[/code] (awaited): the booking now, as [code]{reservation, party}[/code]
+## [code]func() -> GSResult[/code] (awaited): the booking now, as [code]{reservation, party}[/code]
 ## or null. See [method use_backbone] and [method use_hub].
 var fetch_fn: Callable = Callable()
 
@@ -75,10 +75,10 @@ var now_fn: Callable = func() -> int: return int(Time.get_unix_time_from_system(
 var previous_source: Object = null
 
 ## The booking in force, or null.
-var current: DotPartyReservation = null
+var current: GSPartyReservation = null
 
 ## The party it is for, as last fetched.
-var party: DotParty = null
+var party: GSParty = null
 
 var _arrived: Dictionary = {}
 var _warned: bool = false
@@ -92,27 +92,27 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	if config == null:
-		config = DotPartyConfig.new()
+		config = GSPartyConfig.new()
 	if policy == null:
-		policy = DotPartyReservePolicy.new()
+		policy = GSPartyReservePolicy.new()
 
-	var existing := DotRegistry.get_service(BAN_SOURCE)
+	var existing := GSRegistry.get_service(BAN_SOURCE)
 	if chain_previous and existing != null and existing != self and is_instance_valid(existing) \
 			and existing.has_method("check_admission"):
 		previous_source = existing
-		DotLog.info(CHANNEL, "chaining to the ban source that was already registered", {"was": existing.get_class()})
+		GSLog.info(CHANNEL, "chaining to the ban source that was already registered", {"was": existing.get_class()})
 
-	DotRegistry.register(SERVICE, self)
-	DotRegistry.register(BAN_SOURCE, self)
+	GSRegistry.register(SERVICE, self)
+	GSRegistry.register(BAN_SOURCE, self)
 
 
 func _exit_tree() -> void:
-	DotRegistry.unregister_instance(SERVICE, self)
-	DotRegistry.unregister_instance(BAN_SOURCE, self)
+	GSRegistry.unregister_instance(SERVICE, self)
+	GSRegistry.unregister_instance(BAN_SOURCE, self)
 	# Hand the seam back rather than leaving it empty, so removing parties at runtime does
 	# not also remove the bans.
 	if previous_source != null and is_instance_valid(previous_source):
-		DotRegistry.register(BAN_SOURCE, previous_source)
+		GSRegistry.register(BAN_SOURCE, previous_source)
 
 
 func _process(delta: float) -> void:
@@ -128,35 +128,35 @@ func _process(delta: float) -> void:
 
 # --- The seam GameSpice Server asks ------------------------------------------------
 
-func check_admission(uid: String, address: String) -> DotResult:
+func check_admission(uid: String, address: String) -> GSResult:
 	var mine := judge(uid)
 	if not mine.ok:
 		_refusals += 1
 		admission_refused.emit(uid, mine.error.message)
-		DotLog.info(CHANNEL, "refused by a party booking", {"uid": uid, "reason": mine.error.detail})
+		GSLog.info(CHANNEL, "refused by a party booking", {"uid": uid, "reason": mine.error.detail})
 		return mine
 	if previous_source != null and is_instance_valid(previous_source):
 		var chained: Variant = previous_source.call("check_admission", uid, address)
-		if chained is DotResult:
-			return chained as DotResult
-	return DotResult.success(true)
+		if chained is GSResult:
+			return chained as GSResult
+	return GSResult.success(true)
 
 
 ## The booking's answer alone, without the chain.
-func judge(uid: String) -> DotResult:
+func judge(uid: String) -> GSResult:
 	var now := _now()
 	if current == null or not current.is_active_at(now):
-		return DotResult.success(true)
+		return GSResult.success(true)
 	if uid.strip_edges() == "":
-		return DotResult.success(true)
+		return GSResult.success(true)
 	if is_member(uid):
-		return DotResult.success(true)
+		return GSResult.success(true)
 	if bypass_fn.is_valid() and bool(bypass_fn.call(uid)):
-		return DotResult.success(true)
+		return GSResult.success(true)
 
 	if current.is_private:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"This server is booked for a private party until %s UTC." % _clock(current.ends_at),
 			"party.reserve.private"
 		)
@@ -166,12 +166,12 @@ func judge(uid: String) -> DotResult:
 		var seats: Vector2i = seats_fn.call()
 		var free := seats.y - seats.x
 		if free <= owed:
-			return DotResult.fail(
-				DotError.CODE_CONFLICT,
+			return GSResult.fail(
+				GSError.CODE_CONFLICT,
 				"The last seats are held for a party that is on its way. Try again in a few minutes.",
 				"party.reserve.held"
 			)
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func is_member(uid: String) -> bool:
@@ -214,31 +214,31 @@ func arrived_count() -> int:
 
 ## Books this server for [param p] here, under [member policy]. For a LAN, or an owner at
 ## the console; a website booking arrives through [method sync] instead.
-func book(p: DotParty, minutes: int, want_private: bool) -> DotResult:
+func book(p: GSParty, minutes: int, want_private: bool) -> GSResult:
 	var now := _now()
 	var humans := 0
 	if seats_fn.is_valid():
 		humans = (seats_fn.call() as Vector2i).x
-	var held: DotPartyReservation = current if current != null and current.is_active_at(now) else null
+	var held: GSPartyReservation = current if current != null and current.is_active_at(now) else null
 	var offered := policy.offer(now, p.id, humans, held)
 	var granted := policy.grant(now, minutes, want_private, offered)
 	if not granted.ok:
 		return granted
 	var g: Dictionary = granted.value
-	var r := DotPartyReservation.new()
+	var r := GSPartyReservation.new()
 	r.id = "local-%d" % now
 	r.server_id = server_id
 	r.party_id = p.id
 	r.is_private = bool(g["private"])
 	r.starts_at = int(g["starts_at"])
 	r.ends_at = int(g["ends_at"])
-	r.status = DotPartyReservation.Status.ACTIVE
+	r.status = GSPartyReservation.Status.ACTIVE
 	apply(r, p)
-	return DotResult.success(r)
+	return GSResult.success(r)
 
 
 ## Puts a booking in force, or with null lifts the one in force.
-func apply(r: DotPartyReservation, p: DotParty) -> void:
+func apply(r: GSPartyReservation, p: GSParty) -> void:
 	var now := _now()
 	if r == null or not r.is_active_at(now):
 		if current != null:
@@ -251,20 +251,20 @@ func apply(r: DotPartyReservation, p: DotParty) -> void:
 		_arrived.clear()
 		_warned = false
 		_empty_since = 0
-		DotLog.info(CHANNEL, "booked for a party", {
+		GSLog.info(CHANNEL, "booked for a party", {
 			"party": r.party_id, "private": r.is_private, "until": _clock(r.ends_at),
 		})
 		reservation_started.emit(r, p)
 
 
 ## Asks [member fetch_fn] for the booking now and applies it.
-func sync() -> DotResult:
+func sync() -> GSResult:
 	if not fetch_fn.is_valid():
-		return DotResult.fail(DotError.CODE_STATE, "nowhere to fetch bookings from")
+		return GSResult.fail(GSError.CODE_STATE, "nowhere to fetch bookings from")
 	var res: Variant = await fetch_fn.call()
-	if not (res is DotResult):
-		return DotResult.fail(DotError.CODE_INTERNAL, "fetch_fn did not return a DotResult")
-	var got: DotResult = res
+	if not (res is GSResult):
+		return GSResult.fail(GSError.CODE_INTERNAL, "fetch_fn did not return a GSResult")
+	var got: GSResult = res
 	if not got.ok:
 		# Keep the booking we have. A backbone outage must not open a private server.
 		return got
@@ -272,50 +272,50 @@ func sync() -> DotResult:
 		apply(null, null)
 		return got
 	var d: Dictionary = got.value
-	apply(d.get("reservation") as DotPartyReservation, d.get("party") as DotParty)
+	apply(d.get("reservation") as GSPartyReservation, d.get("party") as GSParty)
 	return got
 
 
 ## Fetches bookings from the backbone as this server, through any object with
-## [code]get_integration(path, query)[/code] — GameSpice Auth's [code]DotBackboneClient[/code].
+## [code]get_integration(path, query)[/code] — GameSpice Auth's [code]GSBackboneClient[/code].
 ##
 ## The route, [code]GET party/reservation[/code], is served by website-city since its
 ## `feat/game-backbone` work was merged to `main` (by 2026-09-26; whether a given site is
 ## deployed with it is the operator's to know);
 ## it is specified in this repository's [code]docs/backbone-contract.md[/code].
 func use_backbone(client: Object) -> void:
-	fetch_fn = func() -> DotResult:
-		var res: DotResult = await client.call("get_integration", "party/reservation", {})
+	fetch_fn = func() -> GSResult:
+		var res: GSResult = await client.call("get_integration", "party/reservation", {})
 		if not res.ok:
 			return res
-		return DotPartyReservations.parse_backbone(res.value)
+		return GSPartyReservations.parse_backbone(res.value)
 
 
 ## Fetches bookings from an in-process hub, as server [member server_id].
-func use_hub(hub: DotPartyLocalHub) -> void:
-	fetch_fn = func() -> DotResult:
+func use_hub(hub: GSPartyLocalHub) -> void:
+	fetch_fn = func() -> GSResult:
 		return hub.active_for_server(server_id)
 
 
 ## Reads [code]{ok, reservation, party, members}[/code]. Either may be null.
-static func parse_backbone(value: Variant) -> DotResult:
+static func parse_backbone(value: Variant) -> GSResult:
 	if not (value is Dictionary):
-		return DotResult.fail(DotError.CODE_PARSE, "a reservation answer that is not an object")
+		return GSResult.fail(GSError.CODE_PARSE, "a reservation answer that is not an object")
 	var d: Dictionary = value
 	if d.get("reservation") == null:
-		return DotResult.success(null)
+		return GSResult.success(null)
 	if not (d["reservation"] is Dictionary):
-		return DotResult.fail(DotError.CODE_PARSE, "reservation is not an object")
-	var r := DotPartyReservation.from_dict(d["reservation"] as Dictionary)
+		return GSResult.fail(GSError.CODE_PARSE, "reservation is not an object")
+	var r := GSPartyReservation.from_dict(d["reservation"] as Dictionary)
 	if not r.ok:
 		return r
-	var p: DotParty = null
+	var p: GSParty = null
 	if d.get("party") is Dictionary:
-		var parsed := DotParty.from_dict({"party": d["party"], "members": d.get("members", [])})
+		var parsed := GSParty.from_dict({"party": d["party"], "members": d.get("members", [])})
 		if not parsed.ok:
 			return parsed
 		p = parsed.value
-	return DotResult.success({"reservation": r.value, "party": p})
+	return GSResult.success({"reservation": r.value, "party": p})
 
 
 # --- Time ----------------------------------------------------------------------
@@ -348,7 +348,7 @@ func _end(reason: String) -> void:
 	party = null
 	_arrived.clear()
 	_empty_since = 0
-	DotLog.info(CHANNEL, "booking over", {"party": r.party_id, "reason": reason})
+	GSLog.info(CHANNEL, "booking over", {"party": r.party_id, "reason": reason})
 	reservation_ended.emit(r, reason)
 
 

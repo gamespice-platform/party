@@ -4,12 +4,12 @@ What dot-party speaks: the game server's half under `/api/integration/v1/party/`
 
 ## The game server's half
 
-Under `/api/integration/v1`, authenticated by an integration credential (`Authorization: Bearer tmci_…`), stamped with `ts` (Unix **seconds**) and a `nonce`. dot-auth's `DotBackboneClient.post_integration` / `get_integration` does the stamping; `DotPartyServer` calls them by name.
+Under `/api/integration/v1`, authenticated by an integration credential (`Authorization: Bearer tmci_…`), stamped with `ts` (Unix **seconds**) and a `nonce`. dot-auth's `GSBackboneClient.post_integration` / `get_integration` does the stamping; `GSPartyServer` calls them by name.
 
 | Route | Scope | Used by |
 | --- | --- | --- |
-| `GET party/{id}` | `PARTY_READ` | `DotPartyServer.claim`, `refresh` |
-| `POST party/state` | `PARTY_STATE` | `DotPartyServer.report_state` — the absolute player list, every 15 s |
+| `GET party/{id}` | `PARTY_READ` | `GSPartyServer.claim`, `refresh` |
+| `POST party/state` | `PARTY_STATE` | `GSPartyServer.report_state` — the absolute player list, every 15 s |
 | `POST party/session` | `PARTY_SESSION` | `player_joined`, `player_left` |
 | `POST party/match` | `PARTY_STATE` + `PARTY_STATS` | `match_started`, `match_ended` |
 | `POST party/create` | `PARTY_WRITE` | `create_party` (PUBLIC or FRIENDS only) |
@@ -38,7 +38,7 @@ The booking this server is under right now, and who it is for. The server is the
 }
 ```
 
-`reservation: null` when there is none. Only `ACTIVE` bookings whose window contains now (`GetActiveReservation` alone answers "ends in the future", which would also match a booking approved for later). Built from `GetActiveReservation` in `src/lib/party/reserve.ts` plus the party's JOINED members, un-anonymised for the same reason `GET party/{id}` is — the server's job is to recognise them. `DotPartyReservations.use_backbone(client)` polls it every 30 s and parses it with `parse_backbone`.
+`reservation: null` when there is none. Only `ACTIVE` bookings whose window contains now (`GetActiveReservation` alone answers "ends in the future", which would also match a booking approved for later). Built from `GetActiveReservation` in `src/lib/party/reserve.ts` plus the party's JOINED members, un-anonymised for the same reason `GET party/{id}` is — the server's job is to recognise them. `GSPartyReservations.use_backbone(client)` polls it every 30 s and parses it with `parse_backbone`.
 
 **Why members carry `userId`:** a GameSpice Server session's uid after GameSpice Auth is `backbone:<userId>`. Matching on display names would let a stranger in by calling themselves the host.
 
@@ -71,14 +71,14 @@ Under `/api/app/v1`, authenticated by the player's app token (`Authorization: Be
 | `POST party/reserve` | `ReserveServerForParty` | `ReserveServerInput` | the reservation |
 | `POST party/reserve/cancel` | `reserve.cancel` | `{ reservationId }` | the reservation |
 
-Rate limits are the website's own buckets (`PARTY_LIMITS` in `src/lib/party/limits.ts`, e.g. `join` 30 / 300 s, `reserve` 10 / 300 s, `start` 20 / 300 s), shared with the website so alternating surfaces buys no extra attempts. `GET party/mine` has a bucket of its own (`PARTY_APP_MINE_LIMIT`, 600 / 300 s) sized for three clients on one account polling the ready round at `PARTY_APP_MINE_POLL_SEC` (1.5 s), which is `DotPartyConfig.ready_poll_sec`; a faster client poll runs a second install into 429s mid-round.
+Rate limits are the website's own buckets (`PARTY_LIMITS` in `src/lib/party/limits.ts`, e.g. `join` 30 / 300 s, `reserve` 10 / 300 s, `start` 20 / 300 s), shared with the website so alternating surfaces buys no extra attempts. `GET party/mine` has a bucket of its own (`PARTY_APP_MINE_LIMIT`, 600 / 300 s) sized for three clients on one account polling the ready round at `PARTY_APP_MINE_POLL_SEC` (1.5 s), which is `GSPartyConfig.ready_poll_sec`; a faster client poll runs a second install into 429s mid-round.
 
 ### Why the connect URL matters
 
-`PartyReadyView.connect.url` is the site's resolved connect template for the app. `DotPartyClient` hands it to the game's `connect_fn` once per ready round and then calls `party/connected`, which is what lets the site start the round the moment the last member is in. **The party snapshot does not carry it**: `GET party/mine` and `GET party/{id}` have no `connect`, because the address is only built for a JOINED member in the ready view. So `DotPartyClient.refresh` asks `GET party/{id}/ready` whenever the snapshot is READY with no address — without that it never followed a round against the real site, which the suite driving the local hub (whose snapshot does carry it) could not see.
+`PartyReadyView.connect.url` is the site's resolved connect template for the app. `GSPartyClient` hands it to the game's `connect_fn` once per ready round and then calls `party/connected`, which is what lets the site start the round the moment the last member is in. **The party snapshot does not carry it**: `GET party/mine` and `GET party/{id}` have no `connect`, because the address is only built for a JOINED member in the ready view. So `GSPartyClient.refresh` asks `GET party/{id}/ready` whenever the snapshot is READY with no address — without that it never followed a round against the real site, which the suite driving the local hub (whose snapshot does carry it) could not see.
 
 ## What GameSpice Party duplicates on purpose
 
-`DotPartyReservePolicy` is `ServerReservationOffer`, `ReserveWindowOpen` and `ReserveWindowCloses`, ported line for line, including the wrapped window (22:00 → 02:00) and clamping rather than refusing a booking that would run past the window. `DotPartyLocalHub` is `CanJoinParty` in the site's order (ended, banned, alreadyIn, the host always gets back in, full, type, the after-start lock for walk-ins only) and the ready round's arm-once / disarm-below-threshold rule.
+`GSPartyReservePolicy` is `ServerReservationOffer`, `ReserveWindowOpen` and `ReserveWindowCloses`, ported line for line, including the wrapped window (22:00 → 02:00) and clamping rather than refusing a booking that would run past the window. `GSPartyLocalHub` is `CanJoinParty` in the site's order (ended, banned, alreadyIn, the host always gets back in, full, type, the after-start lock for walk-ins only) and the ready round's arm-once / disarm-below-threshold rule.
 
 They are copies for the reason GameSpice Stats' merge rule is: a LAN server with no website still has to answer these questions, and two implementations that disagree about a booking window mean a party turned away from a server the site said was theirs. **A change to any of these rules on the site needs the same change here**, and the suite section that covers it.

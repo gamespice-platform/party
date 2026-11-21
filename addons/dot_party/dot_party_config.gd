@@ -1,6 +1,6 @@
 @tool
-class_name DotPartyConfig
-extends DotConfig
+class_name GSPartyConfig
+extends GSConfig
 
 ## Timings for both halves of a party: the player's client and the game server.
 ##
@@ -54,15 +54,15 @@ func cli_prefix() -> String:
 	return "--party-"
 
 
-## The addon name [DotAddonConfig] turns into the folder `dot_party`.
+## The addon name [GSAddonConfig] turns into the folder `dot_party`.
 const CFG_ADDON := "dot-party"
 
 
 ## Applies [param file_name] from `cfg/addons/dot_party/`, then the operator's `cfg/server/addons/dot_party/`.
 ## A flat [param legacy_dir]/[param file_name] is still read (one WARN) while no new copy exists.
 ## Keys not starting `party_` belong to the deployment and are skipped; secrets stay file-only.
-func apply_cfg_file(file_name: String = "party.yml", legacy_dir: String = "res://cfg") -> DotResult:
-	return DotAddonConfig.apply_file(CFG_ADDON, file_name, legacy_dir, _apply_cfg_values)
+func apply_cfg_file(file_name: String = "party.yml", legacy_dir: String = "res://cfg") -> GSResult:
+	return GSAddonConfig.apply_file(CFG_ADDON, file_name, legacy_dir, _apply_cfg_values)
 
 
 func _apply_cfg_values(values: Dictionary, path: String) -> PackedStringArray:
@@ -79,7 +79,7 @@ func _apply_cfg_values(values: Dictionary, path: String) -> PackedStringArray:
 
 
 ## [method apply_cfg_file], then the environment, the command line and validation.
-func load_cfg(file_name: String = "party.yml", legacy_dir: String = "res://cfg") -> DotResult:
+func load_cfg(file_name: String = "party.yml", legacy_dir: String = "res://cfg") -> GSResult:
 	unknown_keys = PackedStringArray()
 	var file_res := apply_cfg_file(file_name, legacy_dir)
 	if not file_res.ok:
@@ -89,19 +89,19 @@ func load_cfg(file_name: String = "party.yml", legacy_dir: String = "res://cfg")
 	var valid := validate()
 	if not valid.ok:
 		return valid.wrap("Configuration is invalid.")
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if heartbeat_sec >= 150.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"a heartbeat of %.0fs is at or past the backbone's 150s staleness limit" % heartbeat_sec,
 			"every member would be dropped from their own party"
 		)
 	if ready_poll_sec > poll_sec:
-		return DotResult.fail(DotError.CODE_INVALID, "the ready round polls slower than the lobby")
-	return DotResult.success(null)
+		return GSResult.fail(GSError.CODE_INVALID, "the ready round polls slower than the lobby")
+	return GSResult.success(null)
 
 
 func describe_lines(_redact_sensitive: bool = true) -> PackedStringArray:
