@@ -1,10 +1,10 @@
 # Design
 
-Why dot-party is shaped the way it is. The routes are in [backbone-contract.md](backbone-contract.md); the one-line rules are in [CLAUDE.md](../CLAUDE.md).
+Why gs-party is shaped the way it is. The routes are in [backbone-contract.md](backbone-contract.md); the one-line rules are in [CLAUDE.md](../CLAUDE.md).
 
 ## Two halves of the site's party system
 
-website-city has a complete party system (`Party`, `PartyMember`, invites, a ready round, a server finder, reservations with owner terms). dot-party speaks both ends of it:
+website-city has a complete party system (`Party`, `PartyMember`, invites, a ready round, a server finder, reservations with owner terms). gs-party speaks both ends of it:
 
 | | Site routes | Here |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ website-city has a complete party system (`Party`, `PartyMember`, invites, a rea
 | The **game server** learning it is booked | `/api/integration/v1/party/reservation` | `GSPartyReservations` |
 | The **player** managing their party | `/api/app/v1/party/*` (before these, only tRPC behind the website's session cookie, which a game client does not hold) | `GSPartyBackendApp` |
 
-game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions over dot-peer-to-peer: a different thing that shares the word.
+game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions over gs-peer-to-peer: a different thing that shares the word.
 
 ## The pieces
 
@@ -26,7 +26,7 @@ game-fatal-contact's `fc_party.gd` and its siblings are peer-to-peer sessions ov
 | `GSPartyLocalHub`, `GSPartyBackendLocal` | The site's rules in-process: LAN, offline, suites. One hub, one backend per person. |
 | `GSPartyClient` | The player's node: polls, heartbeats, diffs snapshots into signals, follows the party to its server. |
 | `GSPartyServer` | The server's node: claims, rosters, the absolute state report, sessions, rounds; `party_of(uid)`. |
-| `GSPartyReservations` | The server's node that enforces a booking through `dot_ban_source`, chained. |
+| `GSPartyReservations` | The server's node that enforces a booking through `gs_ban_source`, chained. |
 
 ## Refusals are the site's keys
 
@@ -54,7 +54,7 @@ When the player is in no party, `mine()` answers null, which says nothing about 
 
 ## A booking admits through the ban seam, chained, and hands it back
 
-`GSPartyReservations` registers as `dot_ban_source` after capturing whatever was there (GameSpice Moderation, GameSpice Server Security's feeds), asks it too, and **re-registers it on exit** so removing parties at runtime does not remove the bans. The address-only admission pass is always admitted: a booking is about people. Members are recognised by `backbone:<userId>`, never by name; matching display names would let a stranger in by calling themselves the host.
+`GSPartyReservations` registers as `gs_ban_source` after capturing whatever was there (GameSpice Moderation, GameSpice Server Security's feeds), asks it too, and **re-registers it on exit** so removing parties at runtime does not remove the bans. The address-only admission pass is always admitted: a booking is about people. Members are recognised by `backbone:<userId>`, never by name; matching display names would let a stranger in by calling themselves the host.
 
 **An outage keeps the booking.** `sync()` failing leaves the booking in force; the alternative opens a private server whenever the website hiccups.
 

@@ -29,7 +29,7 @@ extends Node
 ## it stamps [code]ts[/code] and the nonce and holds the credential.
 
 const CHANNEL := "party.server"
-const SERVICE := &"dot_party_server"
+const SERVICE := &"gs_party_server"
 
 signal party_tracked(party: GSParty)
 signal party_untracked(party_id: String)

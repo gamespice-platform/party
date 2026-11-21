@@ -3,9 +3,9 @@ extends Node
 ## The yml layout of GameSpice Party's settings: new path, flat shim, operator layer.
 ## Run: [code]timeout 120 godot --headless --path . res://examples/cfg_selftest.tscn[/code]
 
-const FOLDER := "dot_party"
+const FOLDER := "gs_party"
 const FILE := "party.yml"
-const LEGACY := "user://dot_party_cfg_selftest_legacy"
+const LEGACY := "user://gs_party_cfg_selftest_legacy"
 
 const SECTIONS := 1
 const CHECKS := 7
@@ -21,7 +21,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-party cfg self-test")
+	print("gs-party cfg self-test")
 	var addon_dir := "user://cfg/addons/" + FOLDER
 	var server_dir := "user://cfg/server/addons/" + FOLDER
 	_clean(addon_dir, server_dir)

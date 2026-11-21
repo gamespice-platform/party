@@ -1,10 +1,10 @@
 # The backbone contract
 
-What dot-party speaks: the game server's half under `/api/integration/v1/party/`, and the player's half under `/api/app/v1/party/`. Every route below is served by website-city `main` (checked against `src/app/api/integration/v1/party/` and `src/app/api/app/v1/party/`); whether a given site is deployed with it cannot be known from here. Every player-side route and the reservation route are thin wrappers over a function the site already had, using that function's own input names, so a contract change starts on the site.
+What gs-party speaks: the game server's half under `/api/integration/v1/party/`, and the player's half under `/api/app/v1/party/`. Every route below is served by website-city `main` (checked against `src/app/api/integration/v1/party/` and `src/app/api/app/v1/party/`); whether a given site is deployed with it cannot be known from here. Every player-side route and the reservation route are thin wrappers over a function the site already had, using that function's own input names, so a contract change starts on the site.
 
 ## The game server's half
 
-Under `/api/integration/v1`, authenticated by an integration credential (`Authorization: Bearer tmci_…`), stamped with `ts` (Unix **seconds**) and a `nonce`. dot-auth's `GSBackboneClient.post_integration` / `get_integration` does the stamping; `GSPartyServer` calls them by name.
+Under `/api/integration/v1`, authenticated by an integration credential (`Authorization: Bearer tmci_…`), stamped with `ts` (Unix **seconds**) and a `nonce`. gs-auth's `GSBackboneClient.post_integration` / `get_integration` does the stamping; `GSPartyServer` calls them by name.
 
 | Route | Scope | Used by |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Under `/api/integration/v1`, authenticated by an integration credential (`Author
 | `POST party/create` | `PARTY_WRITE` | `create_party` (PUBLIC or FRIENDS only) |
 | `POST party/end` | `PARTY_WRITE` | `end_party` |
 
-Shapes are the site's, documented in `website-city/docs/api/integration-api.md`. dot-party's suite parses the `GET party/{id}` example from that document verbatim.
+Shapes are the site's, documented in `website-city/docs/api/integration-api.md`. gs-party's suite parses the `GET party/{id}` example from that document verbatim.
 
 ## A game server learning it has been booked
 

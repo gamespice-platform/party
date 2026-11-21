@@ -4,7 +4,7 @@ Parties that play together, from both ends of the TMC backbone's party system: t
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../../docs/backbone.md) for anything that talks to website-city.
 
-**The distributable is `addons/dot_party/`.** It requires [GameSpice Core](../dot-core) and nothing else (`ln -s ../../dot-core/addons/dot_core addons/dot_core`, gitignored). dot-auth's clients and dot-server's admission seam are reached by duck typing and never named.
+**The distributable is `addons/gs_party/`.** It requires [GameSpice Core](../gs-core) and nothing else (`ln -s ../../gs-core/addons/gs_core addons/gs_core`, gitignored). gs-auth's clients and gs-server's admission seam are reached by duck typing and never named.
 
 ## Read before
 
@@ -20,14 +20,14 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first, and [docs/backbone.md](../..
 | --- | --- |
 | `core/` | `GSParty`, `GSPartyMember`, `GSPartyReady`, `GSPartyReservation`, `GSPartyReservePolicy` |
 | `backend/` | `GSPartyBackend` (interface), `GSPartyBackendApp` (the site), `GSPartyLocalHub` + `GSPartyBackendLocal` (in-process) |
-| `runtime/dot_party_client.gd` | `GSPartyClient`: the player's node |
-| `server/dot_party_server.gd` | `GSPartyServer`: claims, rosters, state report, `party_of(uid)` |
-| `server/dot_party_reservations.gd` | `GSPartyReservations`: booking enforcement as `dot_ban_source` |
-| `dot_party_config.gd` | `GSPartyConfig`: poll, heartbeat, state-report and reservation-sync intervals |
+| `runtime/gs_party_client.gd` | `GSPartyClient`: the player's node |
+| `server/gs_party_server.gd` | `GSPartyServer`: claims, rosters, state report, `party_of(uid)` |
+| `server/gs_party_reservations.gd` | `GSPartyReservations`: booking enforcement as `gs_ban_source` |
+| `gs_party_config.gd` | `GSPartyConfig`: poll, heartbeat, state-report and reservation-sync intervals |
 | `examples/party_selftest.tscn` | the suite, no network |
-| `examples/cfg_selftest.tscn` | `party.yml` through `GSPartyConfig.load_cfg`: `cfg/addons/dot_party/`, `cfg/server/addons/dot_party/` over it, the flat `cfg/party.yml` shim (WARN once, removed 2026-12-31) |
+| `examples/cfg_selftest.tscn` | `party.yml` through `GSPartyConfig.load_cfg`: `cfg/addons/gs_party/`, `cfg/server/addons/gs_party/` over it, the flat `cfg/party.yml` shim (WARN once, removed 2026-12-31) |
 
-Paths except `examples/` are in `addons/dot_party/`.
+Paths except `examples/` are in `addons/gs_party/`.
 
 ## Running and testing
 
@@ -42,7 +42,7 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 - Heartbeat under the site's 150 s staleness (`validate()` refuses otherwise); do not poll `party/mine` faster than 1.5 s. [design](docs/design.md#the-client-polls-because-the-site-pushes-nothing), [contract](docs/backbone-contract.md#the-players-half)
 - `connect_requested` fires once per round; LOBBY or SEARCHING resets it. The connect address comes from the ready view, not the snapshot. [design](docs/design.md#following-is-once-per-round-reset-by-the-lobby)
 - A game token reaches only its own app's parties (`party.deny.otherApp`). [contract](docs/backbone-contract.md#the-players-half)
-- Bookings admit through `dot_ban_source`, chain the previous holder and restore it on exit; members match by `backbone:<userId>`, never by name; an outage keeps the booking. [design](docs/design.md#a-booking-admits-through-the-ban-seam-chained-and-hands-it-back)
+- Bookings admit through `gs_ban_source`, chain the previous holder and restore it on exit; members match by `backbone:<userId>`, never by name; an outage keeps the booking. [design](docs/design.md#a-booking-admits-through-the-ban-seam-chained-and-hands-it-back)
 - The state report is the whole list every time and never carries a uid. [design](docs/design.md#the-state-report-is-absolute-and-never-carries-a-uid)
 - Never name a method after an `Object` method (`is_connected`). [history](docs/history.md#is_connected-shadowed-objectis_connected)
 

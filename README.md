@@ -6,7 +6,7 @@ Parties for a Godot 4 game: people who play together. A party is tracked from th
 
 ## Install
 
-Copy `addons/dot_party/` and dot-core's `addons/dot_core/` into your project and enable dot-party under **Project > Project Settings > Plugins**. dot-auth's client and dot-server's admission check are used when present but never required.
+Copy `addons/gs_party/` and gs-core's `addons/gs_core/` into your project and enable gs-party under **Project > Project Settings > Plugins**. gs-auth's client and gs-server's admission check are used when present but never required.
 
 ## Backends
 
@@ -28,7 +28,7 @@ The party's ready round is how it moves. The host picks a server, everybody is t
 ```gdscript
 var party := GSPartyClient.new()
 var app := GSPartyBackendApp.new()
-app.client = auth          # dot-auth's GSAuthClient: it holds the token and refreshes it
+app.client = auth          # gs-auth's GSAuthClient: it holds the token and refreshes it
 party.backend = app
 party.user_id = auth.identity().uid.trim_prefix("backbone:")
 party.connect_fn = func(url: String, _info: Dictionary) -> GSResult:
@@ -73,7 +73,7 @@ A joining client names its party. The server fetches that party's roster and che
 
 ## Settings
 
-`GSPartyConfig` is layered like every GameSpice config: defaults, JSON file, `DOT_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
+`GSPartyConfig` is layered like every GameSpice config: defaults, JSON file, `GS_PARTY_*` environment, `--party-*` command line. Several values mirror the website's own numbers. A client that heartbeats less often than the site expects is dropped from its own party, so `heartbeat_sec` must stay under 150.
 
 | Setting | Default | What it does |
 | --- | --- | --- |

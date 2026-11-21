@@ -9,7 +9,7 @@ extends Node
 ## server's half: it learns the booking (from the backbone, from a local hub, or from the
 ## owner at the console), and it answers the admission question GameSpice Server already asks.
 ##
-## [b]It admits through [code]dot_ban_source[/code], chained.[/b] That is the seam GameSpice Server
+## [b]It admits through [code]gs_ban_source[/code], chained.[/b] That is the seam GameSpice Server
 ## consults on every join, and GameSpice Moderation and GameSpice Server Security's ban feeds already
 ## share it by chaining. This does the same — whatever was registered before is kept and
 ## asked as well — so installing parties does not quietly switch off anybody's bans. The
@@ -33,10 +33,10 @@ extends Node
 ## calling themselves the host.
 
 const CHANNEL := "party.reserve"
-const SERVICE := &"dot_party_reservations"
+const SERVICE := &"gs_party_reservations"
 
 ## The seam GameSpice Server asks. GameSpice Moderation and GameSpice Server Security publish the same name.
-const BAN_SOURCE := &"dot_ban_source"
+const BAN_SOURCE := &"gs_ban_source"
 
 signal reservation_started(reservation: GSPartyReservation, party: GSParty)
 signal reservation_ending(reservation: GSPartyReservation, seconds_left: int)
@@ -49,7 +49,7 @@ signal admission_refused(uid: String, reason: String)
 ## This server's terms, for bookings made here rather than on the website.
 @export var policy: GSPartyReservePolicy = null
 
-## Also consult whatever held [code]dot_ban_source[/code] before this node. Off replaces the
+## Also consult whatever held [code]gs_ban_source[/code] before this node. Off replaces the
 ## ban list's enforcement rather than adding to it, which is almost never what anybody wants.
 @export var chain_previous: bool = true
 

@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises dot-party with no network: four people, a hub, a game server and a fake backbone.
+## Exercises gs-party with no network: four people, a hub, a game server and a fake backbone.
 ##
 ## [b]The backbone's shapes are checked against the site's own documentation.[/b] Section
 ## 1 parses the JSON printed in website-city's integration API document, field for field,
@@ -32,7 +32,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-party self-test")
+	_line("gs-party self-test")
 	_line("")
 
 	_test_backbone_shapes()
@@ -92,7 +92,7 @@ func _test_backbone_shapes() -> void:
 	_check(p.start_time == 1785355200, "an ISO time with milliseconds and a Z reads as the right second")
 	var host := p.host()
 	_check(host != null and host.display_name == "Ashley" and host.kills == 18, "the host is found, with their numbers")
-	_check(host.server_uid() == "backbone:clx1", "and is recognised on a server by the uid dot-auth gives a session")
+	_check(host.server_uid() == "backbone:clx1", "and is recognised on a server by the uid gs-auth gives a session")
 
 	# An id past 2^53 is exactly why the site sends a string.
 	var big := GSParty.from_dict({"party": {"id": "9007199254740993"}, "members": []})
@@ -402,7 +402,7 @@ func _test_reservations() -> void:
 
 	var bans := BanList.new()
 	bans.banned["backbone:villain"] = true
-	GSRegistry.register(&"dot_ban_source", bans)
+	GSRegistry.register(&"gs_ban_source", bans)
 
 	var seats: Array[Vector2i] = [Vector2i(0, 10)]
 	var gate := GSPartyReservations.new()
@@ -416,7 +416,7 @@ func _test_reservations() -> void:
 	add_child(gate)
 	gate.set_process(false)
 
-	_check(GSRegistry.get_service(&"dot_ban_source") == gate, "it takes the admission seam")
+	_check(GSRegistry.get_service(&"gs_ban_source") == gate, "it takes the admission seam")
 	_check(gate.previous_source == bans, "and keeps the ban list that held it")
 	_check(not gate.check_admission("backbone:villain", "1.2.3.4").ok, "so a banned player is still refused with no booking in force")
 
@@ -499,8 +499,8 @@ func _test_reservations() -> void:
 
 	gate.queue_free()
 	await get_tree().process_frame
-	_check(GSRegistry.get_service(&"dot_ban_source") == bans, "removing it hands the seam back to the ban list")
-	GSRegistry.unregister_instance(&"dot_ban_source", bans)
+	_check(GSRegistry.get_service(&"gs_ban_source") == bans, "removing it hands the seam back to the ban list")
+	GSRegistry.unregister_instance(&"gs_ban_source", bans)
 
 
 # --- 8 ----------------------------------------------------------------------
@@ -515,7 +515,7 @@ class FakeAuthClient:
 
 	func post_app(path: String, body: Dictionary) -> GSResult:
 		calls.append(["POST", path, body])
-		# What dot-auth hands back for a refusal: the site's code already in the detail.
+		# What gs-auth hands back for a refusal: the site's code already in the detail.
 		return GSResult.failure(GSError.make(GSError.CODE_CONFLICT, "This party is full.", "party.join.deny.full"))
 
 
@@ -653,7 +653,7 @@ func _test_app_backend() -> void:
 	var auth := FakeAuthClient.new()
 	via_auth.client = auth
 	var offer := await via_auth.reservation_offer("4471", 12)
-	_check(offer.ok and auth.calls[0][0] == "GET" and (auth.calls[0][2] as Dictionary)["serverId"] == 12, "through dot-auth's client, a query goes as a query")
+	_check(offer.ok and auth.calls[0][0] == "GET" and (auth.calls[0][2] as Dictionary)["serverId"] == 12, "through gs-auth's client, a query goes as a query")
 	var refused := await via_auth.join("4471")
 	_check(not refused.ok and refused.error.detail == "party.join.deny.full", "and a refusal keeps the site's key")
 	_check(not (await app.invite("4471", PackedStringArray(range(26).map(func(i: int) -> String: return str(i))))).ok, "and so are twenty-six invites at once")

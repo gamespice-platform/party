@@ -6,23 +6,23 @@ extends EditorPlugin
 ## No autoloads: a server and a client share one process, and the suite has four people in
 ## one, and a global would make each of those one.
 
-const _ICON := "res://addons/dot_party/icon_placeholder.svg"
+const _ICON := "res://addons/gs_party/icon_placeholder.svg"
 
 const _TYPES := [
 	[
 		"GSPartyClient",
 		"Node",
-		"res://addons/dot_party/runtime/dot_party_client.gd",
+		"res://addons/gs_party/runtime/gs_party_client.gd",
 	],
 	[
 		"GSPartyServer",
 		"Node",
-		"res://addons/dot_party/server/dot_party_server.gd",
+		"res://addons/gs_party/server/gs_party_server.gd",
 	],
 	[
 		"GSPartyReservations",
 		"Node",
-		"res://addons/dot_party/server/dot_party_reservations.gd",
+		"res://addons/gs_party/server/gs_party_reservations.gd",
 	],
 ]
 

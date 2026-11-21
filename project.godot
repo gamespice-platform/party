@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="dot-party"
+config/name="gs-party"
 config/description="Parties that play together: the TMC backbone's party system from both ends, joining a server together, and bookings a server actually enforces."
 run/main_scene="res://examples/party_selftest.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
@@ -23,7 +23,7 @@ window/size/viewport_height=900
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/dot_party/plugin.cfg")
+enabled=PackedStringArray("res://addons/gs_party/plugin.cfg")
 
 [importer_defaults]
 

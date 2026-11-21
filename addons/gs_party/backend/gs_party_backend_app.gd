@@ -323,7 +323,7 @@ func _refusal(env: Dictionary, status: int, fallback_code: String = GSError.CODE
 static func _no_routes(res: GSResult) -> GSResult:
 	var err := GSError.make(
 		res.error.code if res.error != null else GSError.CODE_INVALID,
-		"the site has no app party routes yet; see dot-party's docs/backbone-contract.md"
+		"the site has no app party routes yet; see gs-party's docs/backbone-contract.md"
 	)
 	if res.error != null:
 		err.http_status = res.error.http_status
