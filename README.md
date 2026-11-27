@@ -2,7 +2,7 @@
 
 Parties for a Godot 4 game: people who play together. A party is tracked from the lobby to the game server, its members join that server together, and a server can be booked for a party and actually keep the seats for them. It works with the TMC website's party system. It needs only [GameSpice Core](https://github.com/gamespice-platform/core). Part of TMC's open source [**GameSpice**](https://gamespice.net) collection (MIT licence).
 
-> Built with Claude Code. Every addon has a headless test suite and the suites pass, but little of this has met real players yet. Please report rough edges.
+> A GameSpice addon under the MIT licence, built with Claude Code. It carries a headless test suite you can run from the example scene. The games in [Zee's Games](https://zeesgames.com) are built on the GameSpice addons and run on live servers, which is where addons like this one get exercised.
 
 ## Install
 
@@ -91,9 +91,23 @@ A joining client names its party. The server fetches that party's roster and che
 
 The server half uses the website's integration routes under `/api/integration/v1/party/`, and the player half uses `/api/app/v1/party/`. [docs/backbone-contract.md](docs/backbone-contract.md) lists every route. A website without them makes `GSPartyBackendApp` fail each call with a message that says so, and `GSPartyBackendLocal` gives a game the same behaviour offline.
 
+## Test
+
+```bash
+godot --headless --path . --import
+godot --headless --path . res://examples/party_selftest.tscn
+godot --headless --path . res://examples/cfg_selftest.tscn
+```
+
 ## More
 
 [docs/design.md](docs/design.md) explains the choices and [docs/history.md](docs/history.md) lists bugs worth recognising if they return.
+
+## Used by
+
+No shipped game uses it yet; the example scene (`party_selftest`) shows it.
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
 
 ## Licence
 
